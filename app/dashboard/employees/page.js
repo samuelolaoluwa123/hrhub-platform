@@ -1,0 +1,32 @@
+import { createClient } from "@/lib/supabase/server";
+import EmployeesTable from "@/components/dashboard/employees/EmployeesTable";
+
+export default async function EmployeesPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, company_id")
+    .eq("id", user.id)
+    .single();
+
+  // RLS already scopes this to the caller's own company.
+  const { data: employees } = await supabase
+    .from("employees")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  const canManage = profile?.role === "admin" || profile?.role === "manager";
+
+  return (
+    <EmployeesTable
+      initialEmployees={employees ?? []}
+      canManage={canManage}
+      companyId={profile?.company_id}
+    />
+  );
+}
