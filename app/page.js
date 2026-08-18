@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Hero3D from "@/components/marketing/Hero3D";
 import Reveal from "@/components/marketing/Reveal";
 
@@ -14,6 +15,18 @@ export default function LandingPage() {
       {/* HERO */}
       <section className="relative h-screen overflow-hidden bg-[var(--color-hero-bg)]">
         <Hero3D />
+
+        <div className="absolute top-6 left-6 md:top-8 md:left-10 z-10">
+          <Image
+            src="/hrhub-logo-white.png"
+            alt="HRhub"
+            width={110}
+            height={35}
+            priority
+            className="h-7 md:h-8 w-auto"
+          />
+        </div>
+
         <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6">
           <p className="font-mono text-xs tracking-widest text-[var(--color-primary-light)] mb-4">
             HR, ORGANIZED
@@ -118,7 +131,7 @@ export default function LandingPage() {
           </Reveal>
           <Reveal delay={100}>
             <p className="font-display text-7xl md:text-8xl font-semibold mt-12">
-              ₦15,000
+              ₦20,000
               <span className="text-xl font-normal text-[var(--color-text-muted)]">
                 {" "}/month
               </span>
