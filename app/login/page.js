@@ -36,9 +36,10 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen grid md:grid-cols-2">
-      {/* Brand panel — full height/width, edge to edge, no outer card */}
-      <div className="relative bg-[var(--color-hero-bg)] p-10 md:p-14 flex md:flex-col justify-between items-start overflow-hidden min-h-[220px] md:min-h-screen">
+    <main className="min-h-screen md:grid md:grid-cols-2">
+      {/* Brand panel — desktop only. On mobile this whole panel is dropped
+          in favor of the centered-card layout below. */}
+      <div className="hidden md:flex relative bg-[var(--color-hero-bg)] p-14 flex-col justify-between items-start overflow-hidden min-h-screen">
         <FloatingCards />
 
         <div className="relative z-10">
@@ -52,7 +53,7 @@ export default function LoginPage() {
           />
         </div>
 
-        <div className="relative z-10 hidden md:block">
+        <div className="relative z-10">
           <p className="font-display font-semibold text-4xl text-white leading-snug max-w-md">
             HR, <span className="text-[var(--color-accent)]">organized</span>.
           </p>
@@ -61,12 +62,36 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <div className="relative z-10 hidden md:block h-6" />
+        <div className="relative z-10 h-6" />
       </div>
 
-      {/* Form panel — full height/width, edge to edge */}
-      <div className="flex items-center justify-center bg-[var(--color-surface)] p-8 md:p-14">
-        <div className="w-full max-w-sm animate-[fadeUp_500ms_var(--ease-out)]">
+      {/* Form side — centered card on mobile, edge-to-edge panel on desktop */}
+      <div
+        className="
+          min-h-screen flex flex-col items-center justify-center
+          bg-[var(--color-violet-tint)] md:bg-[var(--color-surface)]
+          px-5 py-10 md:p-14
+        "
+      >
+        {/* Logo above the card — mobile only, desktop already has it in the brand panel */}
+        <div className="md:hidden mb-7">
+          <Image
+            src="/hrhub-logo-full-color.png"
+            alt="HRhub"
+            width={92}
+            height={29}
+            priority
+            className="h-6 w-auto"
+          />
+        </div>
+
+        <div
+          className="
+            w-full max-w-sm animate-[fadeUp_500ms_var(--ease-out)]
+            bg-white rounded-2xl shadow-[0_1px_2px_rgba(19,4,34,0.06)] p-6
+            md:bg-transparent md:shadow-none md:p-0 md:rounded-none
+          "
+        >
           <h1 className="font-display text-2xl font-semibold text-[var(--color-text-primary)]">
             Welcome back
           </h1>
@@ -149,7 +174,8 @@ export default function LoginPage() {
 
 // Lightweight CSS-only ambient motif — deliberately not the full 3D
 // scene, since this page is visited far more often than the landing
-// page and doesn't need that weight.
+// page and doesn't need that weight. Desktop-only, same as the brand
+// panel it lives in.
 function FloatingCards() {
   const cards = [
     { top: "12%", left: "8%", size: 46, delay: "0s" },
