@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,9 +41,16 @@ export default function LoginPage() {
       <div className="relative bg-[var(--color-hero-bg)] p-10 md:p-14 flex md:flex-col justify-between items-start overflow-hidden min-h-[220px] md:min-h-screen">
         <FloatingCards />
 
-        <p className="relative z-10 font-display font-semibold text-xl text-[var(--color-primary-light)]">
-          HRhub
-        </p>
+        <div className="relative z-10">
+          <Image
+            src="/hrhub-logo-white.png"
+            alt="HRhub"
+            width={110}
+            height={35}
+            priority
+            className="h-8 w-auto"
+          />
+        </div>
 
         <div className="relative z-10 hidden md:block">
           <p className="font-display font-semibold text-4xl text-white leading-snug max-w-md">

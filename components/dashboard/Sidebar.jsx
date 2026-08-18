@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -68,9 +69,14 @@ export default function Sidebar({ fullName, role }) {
     <>
       {/* Mobile top strip with menu toggle */}
       <div className="md:hidden flex items-center justify-between px-5 py-4 border-b border-black/5 bg-white">
-        <span className="font-display font-semibold text-[var(--color-primary)]">
-          HRhub
-        </span>
+        <Image
+          src="/hrhub-logo-full-color.png"
+          alt="HRhub"
+          width={92}
+          height={29}
+          priority
+          className="h-6 w-auto"
+        />
         <button
           onClick={() => setOpen((v) => !v)}
           aria-label="Toggle navigation"
@@ -111,9 +117,13 @@ export default function Sidebar({ fullName, role }) {
         />
 
         <div className="hidden md:block px-2.5 pb-1.5 relative">
-          <span className="font-display font-semibold text-lg text-[var(--color-primary-light)]">
-            HRhub
-          </span>
+          <Image
+            src="/hrhub-logo-white.png"
+            alt="HRhub"
+            width={100}
+            height={32}
+            className="h-7 w-auto"
+          />
         </div>
 
         <p className="text-[10.5px] font-semibold tracking-wide text-[#6b6180] uppercase px-3 pt-5 pb-2 relative">
