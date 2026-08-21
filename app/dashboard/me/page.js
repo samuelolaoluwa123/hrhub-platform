@@ -112,7 +112,12 @@ export default async function MyHubPage() {
       icon: <path d="M6 3h9l3 3v15H6zM9 12h6M9 16h6" />,
       available: true,
     },
-    { label: "My attendance", icon: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></>, available: false },
+    {
+      href: "/dashboard/attendance",
+      label: "My attendance",
+      icon: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></>,
+      available: true,
+    },
     { label: "My benefits", icon: <path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.5-9.5 9-9.5 9Z" />, available: false },
     { label: "My performance", icon: <path d="M3 3v18h18M7 15l4-4 3 3 5-6" />, available: false },
   ];
