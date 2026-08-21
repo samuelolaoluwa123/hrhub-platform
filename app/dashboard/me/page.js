@@ -16,9 +16,17 @@ export default async function MyHubPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name")
+    .select("full_name, company_id")
     .eq("id", user.id)
     .single();
+
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: todaysCheckin } = await supabase
+    .from("pulse_checkins")
+    .select("mood")
+    .eq("profile_id", user.id)
+    .eq("checkin_date", today)
+    .maybeSingle();
 
   const { data: employee } = await supabase
     .from("employees")
@@ -200,7 +208,11 @@ export default async function MyHubPage() {
         <h3 className="font-display text-lg font-semibold text-[var(--color-text-primary)] mb-4">
           How's your day going?
         </h3>
-        <PulseCheckin />
+        <PulseCheckin
+          profileId={user.id}
+          companyId={profile?.company_id}
+          initialMood={todaysCheckin?.mood ?? null}
+        />
       </div>
     </div>
   );
