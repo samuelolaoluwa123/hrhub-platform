@@ -7,6 +7,15 @@ import { useState } from "react";
 
 const NAV_ITEMS = [
   {
+    href: "/dashboard/me",
+    label: "My Hub",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M3 12l9-9 9 9M5 10v10h14V10" />
+      </svg>
+    ),
+  },
+  {
     href: "/dashboard",
     label: "Overview",
     exact: true,
@@ -53,6 +62,25 @@ const NAV_ITEMS = [
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M9 11l3 3L22 4" />
         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+      </svg>
+    ),
+  },
+  {
+    href: "/dashboard/attendance",
+    label: "Attendance",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 3" />
+      </svg>
+    ),
+  },
+  {
+    href: "/dashboard/documents",
+    label: "Documents",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M6 3h9l3 3v15H6zM9 12h6M9 16h6" />
       </svg>
     ),
   },
