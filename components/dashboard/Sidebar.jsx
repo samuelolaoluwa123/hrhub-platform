@@ -65,6 +65,15 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+  {
+    href: "/dashboard/documents",
+    label: "Documents",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M6 3h9l3 3v15H6zM9 12h6M9 16h6" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Sidebar({ fullName, role }) {
