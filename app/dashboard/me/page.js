@@ -130,6 +130,12 @@ export default async function MyHubPage() {
       icon: <path d="M3 3v18h18M7 15l4-4 3 3 5-6" />,
       available: true,
     },
+    {
+      href: "/dashboard/loans",
+      label: "My loans",
+      icon: <><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /></>,
+      available: true,
+    },
   ];
 
   return (

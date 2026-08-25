@@ -33,7 +33,7 @@ export default async function PayrollRunPage({ params }) {
     redirect("/dashboard/payroll");
   }
 
-  const [{ data: employees }, { data: payslips }, { data: structures }] = await Promise.all([
+  const [{ data: employees }, { data: payslips }, { data: structures }, { data: loans }] = await Promise.all([
     supabase
       .from("employees")
       .select("id, first_name, last_name, email, profile_id")
@@ -46,6 +46,10 @@ export default async function PayrollRunPage({ params }) {
     supabase
       .from("salary_structures")
       .select("employee_id, base_salary, allowances, pension_employee_rate"),
+    supabase
+      .from("loans")
+      .select("id, employee_id, amount, amount_repaid, monthly_deduction")
+      .eq("status", "approved"),
   ]);
 
   const payslipByEmployee = {};
@@ -58,10 +62,16 @@ export default async function PayrollRunPage({ params }) {
     structureByEmployee[s.employee_id] = s;
   });
 
+  const loansByEmployee = {};
+  (loans ?? []).forEach((l) => {
+    (loansByEmployee[l.employee_id] ??= []).push(l);
+  });
+
   const employeesWithPayslips = (employees ?? []).map((e) => ({
     ...e,
     payslip: payslipByEmployee[e.id] ?? null,
     structure: structureByEmployee[e.id] ?? null,
+    activeLoans: loansByEmployee[e.id] ?? [],
   }));
 
   return (
