@@ -13,6 +13,7 @@ const EMPTY_FORM = {
   employment_type: "full_time",
   start_date: "",
   manager_id: "",
+  birth_date: "",
 };
 
 export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee, companyId, employees }) {
@@ -36,6 +37,7 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
         employment_type: editingEmployee.employment_type ?? "full_time",
         start_date: editingEmployee.start_date ?? "",
         manager_id: editingEmployee.manager_id ?? "",
+        birth_date: editingEmployee.birth_date ?? "",
       });
     } else {
       setForm(EMPTY_FORM);
@@ -51,7 +53,12 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
     setSaving(true);
     setError(null);
 
-    const payload = { ...form, start_date: form.start_date || null, manager_id: form.manager_id || null };
+    const payload = {
+      ...form,
+      start_date: form.start_date || null,
+      manager_id: form.manager_id || null,
+      birth_date: form.birth_date || null,
+    };
 
     // RLS enforces that only admin/manager can write here. On insert,
     // company_id must be set explicitly (it has no default) — omitting
@@ -201,6 +208,20 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
               />
             </Field>
           </div>
+
+          <Field label="Birthday">
+            <input
+              type="date"
+              value={form.birth_date}
+              onChange={(e) => update("birth_date", e.target.value)}
+              className={inputClass}
+              onFocus={focusRing}
+              onBlur={clearRing}
+            />
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+              Only the month and day are ever shown to anyone — used for the birthday reminder on Overview.
+            </p>
+          </Field>
 
           <Field label="Manager">
             <select

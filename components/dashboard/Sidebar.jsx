@@ -66,6 +66,16 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+  {
+    href: "/dashboard/announcements",
+    label: "Announcements",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M3 11l18-5v12L3 14v-3z" />
+        <path d="M11.6 16.8a2 2 0 1 1-3.2 2.4" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Sidebar({ fullName, role }) {
