@@ -83,7 +83,7 @@ export default async function MyHubPage() {
 
   const cards = [
     {
-      href: "/dashboard/employees",
+      href: "/dashboard/profile",
       label: "My profile",
       icon: <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 20a8 8 0 0 1 16 0" />,
       available: true,
