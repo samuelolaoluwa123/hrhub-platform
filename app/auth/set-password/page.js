@@ -26,9 +26,10 @@ export default function SetPasswordPage() {
     }
 
     setLoading(true);
-    // The invite link Supabase sent already establishes a session in
-    // the browser when this page loads — updateUser just sets the
-    // real password on that already-authenticated account.
+    // Both the invite link and the "forgot password" reset link land
+    // here and already establish a session in the browser when this
+    // page loads — updateUser just sets the real password on that
+    // already-authenticated account.
     const { error: updateError } = await supabase.auth.updateUser({ password });
     setLoading(false);
 
@@ -50,10 +51,10 @@ export default function SetPasswordPage() {
         <div>
           <p className="font-display font-semibold text-lg text-[var(--color-primary)] mb-4">HRhub</p>
           <h1 className="font-display text-xl font-semibold text-[var(--color-text-primary)]">
-            Welcome — set your password
+            Set your password
           </h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            This activates your account so you can sign in going forward.
+            Choose a password to sign in with going forward.
           </p>
         </div>
 
