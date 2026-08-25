@@ -24,7 +24,11 @@ export default async function PayrollRoute() {
 
   const employeeId = myEmployeeRow?.id ?? null;
 
-  const [{ data: runs }, { count: totalActiveEmployees }, { data: allPayslips }, { data: myPayslips }] =
+  // Employee headcount goes through an RPC rather than a row count —
+  // employees can now only SELECT their own row (and their manager's),
+  // so a direct count would silently undercount for anyone but
+  // admin/manager. The function returns just the number, no rows.
+  const [{ data: runs }, { data: totalActiveEmployees }, { data: allPayslips }, { data: myPayslips }] =
     await Promise.all([
       canManage
         ? supabase
@@ -33,10 +37,7 @@ export default async function PayrollRoute() {
             .order("period_year", { ascending: false })
             .order("period_month", { ascending: false })
         : Promise.resolve({ data: [] }),
-      supabase
-        .from("employees")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "active"),
+      supabase.rpc("active_employee_count"),
       canManage
         ? supabase.from("payslips").select("id, payroll_run_id")
         : Promise.resolve({ data: [] }),

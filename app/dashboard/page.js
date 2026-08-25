@@ -21,13 +21,13 @@ export default async function DashboardPage() {
 
   // RLS already scopes these to the caller's own company — the
   // .eq() below is just an explicit, readable filter on top of that.
-  const [{ count: employeeCount }, { count: pendingLeaveCount }, { data: nextPayrollRun }] =
+  // Employee headcount goes through an RPC rather than a row count:
+  // employees can now only SELECT their own row (and their manager's),
+  // so a direct count would silently undercount for anyone but
+  // admin/manager. The function returns just the number, no rows.
+  const [{ data: employeeCount }, { count: pendingLeaveCount }, { data: nextPayrollRun }] =
     await Promise.all([
-      supabase
-        .from("employees")
-        .select("id", { count: "exact", head: true })
-        .eq("company_id", profile?.company_id)
-        .eq("status", "active"),
+      supabase.rpc("active_employee_count"),
       supabase
         .from("leave_requests")
         .select("id", { count: "exact", head: true })

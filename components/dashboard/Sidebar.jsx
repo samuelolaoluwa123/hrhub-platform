@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   {
     href: "/dashboard/employees",
     label: "Employees",
+    roles: ["admin", "manager"],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -71,7 +72,7 @@ export default function Sidebar({ fullName, role }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  const items = NAV_ITEMS.filter((item) => !item.adminOnly || role === "admin");
+  const items = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role));
   const initial = (fullName || "?").charAt(0).toUpperCase();
 
   return (

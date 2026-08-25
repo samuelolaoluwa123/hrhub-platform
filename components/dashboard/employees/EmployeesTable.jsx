@@ -85,10 +85,15 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
   }
 
   async function handleBulkDeactivate() {
-    await supabase
+    if (!canManage) return;
+    const { error } = await supabase
       .from("employees")
       .update({ status: "terminated" })
       .in("id", Array.from(selected));
+    if (error) {
+      alert(error.message);
+      return;
+    }
     refresh();
   }
 
@@ -147,7 +152,7 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
         )}
       </div>
 
-      {selected.size > 0 ? (
+      {canManage && selected.size > 0 ? (
         <div className="flex items-center gap-4 bg-[var(--color-text-primary)] text-white rounded-lg px-4 py-2.5 mb-4 text-sm">
           <span className="font-medium">{selected.size} selected</span>
           <div className="ml-auto flex gap-2">
@@ -199,14 +204,16 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
           <table className="w-full text-sm min-w-[720px]">
             <thead>
               <tr className="text-left text-[11px] font-semibold tracking-wide uppercase text-[#9089a0] border-b border-black/[0.06]">
-                <th className="w-8 py-3 pl-4">
-                  <input
-                    type="checkbox"
-                    className="accent-[var(--color-primary)]"
-                    checked={selected.size === filtered.length}
-                    onChange={toggleAll}
-                  />
-                </th>
+                {canManage && (
+                  <th className="w-8 py-3 pl-4">
+                    <input
+                      type="checkbox"
+                      className="accent-[var(--color-primary)]"
+                      checked={selected.size === filtered.length}
+                      onChange={toggleAll}
+                    />
+                  </th>
+                )}
                 <th className="py-3 px-3">Name</th>
                 <th className="py-3 px-3">Role</th>
                 <th className="py-3 px-3">Department</th>
@@ -225,14 +232,16 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
                     animation: `rowIn 400ms var(--ease-out) ${i * 0.04}s both`,
                   }}
                 >
-                  <td className="py-3.5 pl-4">
-                    <input
-                      type="checkbox"
-                      className="accent-[var(--color-primary)]"
-                      checked={selected.has(emp.id)}
-                      onChange={() => toggleRow(emp.id)}
-                    />
-                  </td>
+                  {canManage && (
+                    <td className="py-3.5 pl-4">
+                      <input
+                        type="checkbox"
+                        className="accent-[var(--color-primary)]"
+                        checked={selected.has(emp.id)}
+                        onChange={() => toggleRow(emp.id)}
+                      />
+                    </td>
+                  )}
                   <td className="py-3.5 px-3">
                     <div className="flex items-center gap-2.5">
                       <div
