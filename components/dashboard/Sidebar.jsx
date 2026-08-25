@@ -7,15 +7,6 @@ import { useState } from "react";
 
 const NAV_ITEMS = [
   {
-    href: "/dashboard/me",
-    label: "My Hub",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M3 12l9-9 9 9M5 10v10h14V10" />
-      </svg>
-    ),
-  },
-  {
     href: "/dashboard",
     label: "Overview",
     exact: true,
@@ -66,30 +57,11 @@ const NAV_ITEMS = [
     ),
   },
   {
-    href: "/dashboard/attendance",
-    label: "Attendance",
+    href: "/dashboard/me",
+    label: "My Hub",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7v5l3 3" />
-      </svg>
-    ),
-  },
-  {
-    href: "/dashboard/documents",
-    label: "Documents",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M6 3h9l3 3v15H6zM9 12h6M9 16h6" />
-      </svg>
-    ),
-  },
-  {
-    href: "/dashboard/benefits",
-    label: "Benefits",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.5-9.5 9-9.5 9Z" />
+        <path d="M3 12l9-9 9 9M5 10v10h14V10" />
       </svg>
     ),
   },
@@ -141,7 +113,7 @@ export default function Sidebar({ fullName, role }) {
           className="
             relative bg-[var(--color-hero-bg)]
             w-full md:w-[234px] md:shrink-0
-            flex flex-col md:h-screen md:sticky md:top-0 px-3.5 py-6
+            flex flex-col md:h-screen px-3.5 py-6
           "
         >
         {/* Ambient glow, echoes the landing page hero without WebGL cost */}
