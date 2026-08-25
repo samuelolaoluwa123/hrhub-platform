@@ -29,7 +29,10 @@ export default function ForgotPasswordPage() {
     // Show the same success state whether or not the email exists —
     // don't let this form be used to probe for registered accounts.
     if (authError) {
-      setError(authError.message);
+      // AuthError doesn't always carry a usable .message (e.g. a raw
+      // 500 from the mail provider) — fall back rather than silently
+      // rendering "{}" or nothing at all.
+      setError(authError.message || "Couldn't send that email — try again in a moment.");
       return;
     }
     setSent(true);
