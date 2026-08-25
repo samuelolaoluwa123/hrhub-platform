@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { downloadPayslipPdf } from "@/lib/generatePayslipPdf";
+import { sumAllowances } from "@/lib/calculatePayroll";
+import SalaryStructureDrawer from "./SalaryStructureDrawer";
 
 const STATUS_BADGE = {
   draft: "bg-[#f3f2f5] text-[#706f83]",
@@ -20,7 +22,18 @@ function periodLabel(month, year) {
   return `${MONTH_NAMES[month - 1]} ${year}`;
 }
 
-export default function PayrollPage({ canManage, runs, myPayslips, totalActiveEmployees, companyId, employeeName, companyName }) {
+export default function PayrollPage({
+  canManage,
+  runs,
+  myPayslips,
+  totalActiveEmployees,
+  companyId,
+  employeeName,
+  companyName,
+  structures,
+  employees,
+  profileId,
+}) {
   const router = useRouter();
   const supabase = createClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -28,6 +41,10 @@ export default function PayrollPage({ canManage, runs, myPayslips, totalActiveEm
   const [year, setYear] = useState(new Date().getFullYear());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [structureEmployee, setStructureEmployee] = useState(null);
+
+  const structureByEmployeeId = {};
+  structures.forEach((s) => (structureByEmployeeId[s.employee_id] = s));
 
   async function handleCreateRun(e) {
     e.preventDefault();
@@ -119,6 +136,54 @@ export default function PayrollPage({ canManage, runs, myPayslips, totalActiveEm
                       <td className="py-3.5 px-3.5 text-right text-[#9089a0]">→</td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
+      )}
+
+      {canManage && (
+        <Section eyebrow="Manage" title="Salary structures">
+          {employees.length === 0 ? (
+            <EmptyRow text="No active employees yet." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[560px]">
+                <thead>
+                  <tr className="text-left text-[10.5px] font-semibold tracking-wide uppercase text-[#9089a0]">
+                    <th className="py-3.5 px-3.5">Employee</th>
+                    <th className="py-3.5 px-3.5">Base salary</th>
+                    <th className="py-3.5 px-3.5">Allowances</th>
+                    <th className="py-3.5 px-3.5"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.map((emp) => {
+                    const structure = structureByEmployeeId[emp.id];
+                    return (
+                      <tr key={emp.id} className="border-t border-black/[0.05]">
+                        <td className="py-3.5 px-3.5 font-medium text-[var(--color-text-primary)]">
+                          {emp.first_name} {emp.last_name}
+                        </td>
+                        <td className="py-3.5 px-3.5 font-mono text-xs text-[var(--color-text-muted)]">
+                          {structure ? `₦${Number(structure.base_salary).toLocaleString()}` : "—"}
+                        </td>
+                        <td className="py-3.5 px-3.5 font-mono text-xs text-[var(--color-text-muted)]">
+                          {structure ? `₦${sumAllowances(structure.allowances).toLocaleString()}` : "—"}
+                        </td>
+                        <td className="py-3.5 px-3.5 text-right">
+                          <button
+                            onClick={() => setStructureEmployee({ employee: emp, structure })}
+                            className="text-xs font-medium px-3 py-1.5 rounded-md bg-[var(--color-violet-tint)] text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white transition-colors duration-150"
+                            style={{ transitionTimingFunction: "var(--ease-out)" }}
+                          >
+                            {structure ? "Edit" : "Set up"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -246,6 +311,18 @@ export default function PayrollPage({ canManage, runs, myPayslips, totalActiveEm
         </div>
       )}
 
+      {structureEmployee && (
+        <SalaryStructureDrawer
+          open={Boolean(structureEmployee)}
+          onClose={() => setStructureEmployee(null)}
+          onSaved={() => router.refresh()}
+          employee={structureEmployee.employee}
+          structure={structureEmployee.structure}
+          companyId={companyId}
+          profileId={profileId}
+        />
+      )}
+
       <style jsx global>{`
         @keyframes rowIn {
           from { opacity: 0; transform: translateY(6px); }
@@ -260,11 +337,16 @@ export default function PayrollPage({ canManage, runs, myPayslips, totalActiveEm
   );
 }
 
-function Section({ eyebrow, title, children }) {
+function Section({ eyebrow, title, action, children }) {
   return (
     <div className="mb-7">
-      <p className="font-mono text-[10.5px] tracking-wide uppercase text-[var(--color-accent)] mb-1">{eyebrow}</p>
-      <p className="font-display text-base font-semibold text-[var(--color-text-primary)] mb-3">{title}</p>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className="font-mono text-[10.5px] tracking-wide uppercase text-[var(--color-accent)] mb-1">{eyebrow}</p>
+          <p className="font-display text-base font-semibold text-[var(--color-text-primary)]">{title}</p>
+        </div>
+        {action}
+      </div>
       <div className="bg-white border border-black/[0.06] rounded-2xl overflow-hidden">{children}</div>
     </div>
   );

@@ -28,27 +28,41 @@ export default async function PayrollRoute() {
   // employees can now only SELECT their own row (and their manager's),
   // so a direct count would silently undercount for anyone but
   // admin/manager. The function returns just the number, no rows.
-  const [{ data: runs }, { data: totalActiveEmployees }, { data: allPayslips }, { data: myPayslips }] =
-    await Promise.all([
-      canManage
-        ? supabase
-            .from("payroll_runs")
-            .select("id, period_month, period_year, status")
-            .order("period_year", { ascending: false })
-            .order("period_month", { ascending: false })
-        : Promise.resolve({ data: [] }),
-      supabase.rpc("active_employee_count"),
-      canManage
-        ? supabase.from("payslips").select("id, payroll_run_id")
-        : Promise.resolve({ data: [] }),
-      employeeId
-        ? supabase
-            .from("payslips")
-            .select("id, gross_pay, deductions, net_pay, payroll_runs(period_month, period_year)")
-            .eq("employee_id", employeeId)
-            .order("created_at", { ascending: false })
-        : Promise.resolve({ data: [] }),
-    ]);
+  const [
+    { data: runs },
+    { data: totalActiveEmployees },
+    { data: allPayslips },
+    { data: myPayslips },
+    { data: structures },
+    { data: employees },
+  ] = await Promise.all([
+    canManage
+      ? supabase
+          .from("payroll_runs")
+          .select("id, period_month, period_year, status")
+          .order("period_year", { ascending: false })
+          .order("period_month", { ascending: false })
+      : Promise.resolve({ data: [] }),
+    supabase.rpc("active_employee_count"),
+    canManage
+      ? supabase.from("payslips").select("id, payroll_run_id")
+      : Promise.resolve({ data: [] }),
+    employeeId
+      ? supabase
+          .from("payslips")
+          .select("id, gross_pay, deductions, net_pay, payroll_runs(period_month, period_year)")
+          .eq("employee_id", employeeId)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
+    canManage
+      ? supabase
+          .from("salary_structures")
+          .select("id, employee_id, base_salary, allowances, pension_employee_rate, employees(first_name, last_name)")
+      : Promise.resolve({ data: [] }),
+    canManage
+      ? supabase.from("employees").select("id, first_name, last_name").eq("status", "active").order("first_name")
+      : Promise.resolve({ data: [] }),
+  ]);
 
   // Count payslips per run in plain JS — simpler and just as fast as a
   // group-by RPC for the small row counts a company this size will have.
@@ -70,6 +84,9 @@ export default async function PayrollRoute() {
       companyId={profile?.company_id}
       employeeName={profile?.full_name}
       companyName={profile?.companies?.name}
+      structures={structures ?? []}
+      employees={employees ?? []}
+      profileId={user.id}
     />
   );
 }
