@@ -78,6 +78,7 @@ export default function ProfilePage({ profile, employee }) {
               }
             />
             <Field label="Start date" value={formatDate(employee.start_date)} />
+            <Field label="Manager" value={employee.manager ? `${employee.manager.first_name} ${employee.manager.last_name}` : "—"} />
             <Field label="Email" value={employee.email || profile?.email} />
             <Field label="Phone" value={employee.phone} />
           </div>

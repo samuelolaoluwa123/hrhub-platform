@@ -319,6 +319,7 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
         onSaved={refresh}
         editingEmployee={editingEmployee}
         companyId={companyId}
+        employees={employees}
       />
 
       <style jsx global>{`

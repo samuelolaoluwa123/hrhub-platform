@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { sendNotificationEmail } from "@/lib/sendNotificationEmail";
 import LeaveRequestDrawer from "./LeaveRequestDrawer";
+import LeaveTypeDrawer from "./LeaveTypeDrawer";
+import AllocateBalanceDrawer from "./AllocateBalanceDrawer";
 
 const STATUS_BADGE = {
   pending: "bg-[#fef3e2] text-[#d68a1f]",
@@ -30,11 +32,24 @@ function formatRange(start, end) {
   return `${new Date(start).toLocaleDateString("en-US", opts)} – ${new Date(end).toLocaleDateString("en-US", opts)}`;
 }
 
-export default function LeavePage({ canApprove, pendingRequests, myRequests, leaveTypes, employeeId, companyId }) {
+export default function LeavePage({
+  canApprove,
+  pendingRequests,
+  myRequests,
+  leaveTypes,
+  employeeId,
+  companyId,
+  myBalances,
+  teamBalances,
+  employees,
+  currentYear,
+}) {
   const router = useRouter();
   const supabase = createClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [actingOn, setActingOn] = useState(null);
+  const [typeDrawerOpen, setTypeDrawerOpen] = useState(false);
+  const [balanceDrawerOpen, setBalanceDrawerOpen] = useState(false);
 
   async function handleReview(requestId, status) {
     setActingOn(requestId);
@@ -102,6 +117,31 @@ export default function LeavePage({ canApprove, pendingRequests, myRequests, lea
           </button>
         )}
       </div>
+
+      {employeeId && (
+        <Section eyebrow="This year" title="My leave balance">
+          {myBalances.length === 0 ? (
+            <EmptyRow text="No balance set yet — ask your admin to allocate one." />
+          ) : (
+            <div className="grid sm:grid-cols-3 gap-3 p-4">
+              {myBalances.map((b) => {
+                const remaining = Number(b.days_allocated) - Number(b.days_used);
+                return (
+                  <div key={b.id} className="rounded-xl border border-black/[0.06] px-4 py-3.5">
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">{b.leave_types?.name}</p>
+                    <p className="text-lg font-semibold text-[var(--color-text-primary)]">
+                      {remaining} <span className="text-xs font-normal text-[var(--color-text-muted)]">days left</span>
+                    </p>
+                    <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+                      {b.days_used} used of {b.days_allocated}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Section>
+      )}
 
       {canApprove && (
         <Section
@@ -217,6 +257,101 @@ export default function LeavePage({ canApprove, pendingRequests, myRequests, lea
         )}
       </Section>
 
+      {canApprove && (
+        <Section
+          eyebrow="Admin"
+          title="Leave types"
+          action={
+            <button
+              onClick={() => setTypeDrawerOpen(true)}
+              className="text-xs font-medium px-3 py-1.5 rounded-md bg-[var(--color-primary)] text-white hover:scale-[1.03] transition-transform duration-150"
+              style={{ transitionTimingFunction: "var(--ease-out)" }}
+            >
+              + Add type
+            </button>
+          }
+        >
+          {leaveTypes.length === 0 ? (
+            <EmptyRow text="No leave types yet." />
+          ) : (
+            <div className="flex flex-wrap gap-2 p-4">
+              {leaveTypes.map((t) => (
+                <span key={t.id} className="text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--color-violet-tint)] text-[var(--color-primary)]">
+                  {t.name} &middot; {t.default_days_per_year}/yr
+                </span>
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
+
+      {canApprove && (
+        <Section
+          eyebrow="Admin"
+          title="Team leave balances"
+          count={teamBalances.length}
+          action={
+            <button
+              onClick={() => setBalanceDrawerOpen(true)}
+              className="text-xs font-medium px-3 py-1.5 rounded-md bg-[var(--color-primary)] text-white hover:scale-[1.03] transition-transform duration-150"
+              style={{ transitionTimingFunction: "var(--ease-out)" }}
+            >
+              + Allocate balance
+            </button>
+          }
+        >
+          {teamBalances.length === 0 ? (
+            <EmptyRow text="No balances allocated yet." />
+          ) : (
+            <table className="w-full text-sm min-w-[520px]">
+              <thead>
+                <tr className="text-left text-[10.5px] font-semibold tracking-wide uppercase text-[#9089a0]">
+                  <th className="py-3.5 px-3.5">Employee</th>
+                  <th className="py-3.5 px-3.5">Type</th>
+                  <th className="py-3.5 px-3.5">Allocated</th>
+                  <th className="py-3.5 px-3.5">Used</th>
+                  <th className="py-3.5 px-3.5">Remaining</th>
+                </tr>
+              </thead>
+              <tbody>
+                {teamBalances.map((b) => (
+                  <tr key={b.id} className="border-t border-black/[0.05]">
+                    <td className="py-3.5 px-3.5">{b.employees ? `${b.employees.first_name} ${b.employees.last_name}` : "—"}</td>
+                    <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{b.leave_types?.name}</td>
+                    <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{b.days_allocated}</td>
+                    <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{b.days_used}</td>
+                    <td className="py-3.5 px-3.5 font-medium text-[var(--color-text-primary)]">
+                      {Number(b.days_allocated) - Number(b.days_used)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Section>
+      )}
+
+      {canApprove && (
+        <LeaveTypeDrawer
+          open={typeDrawerOpen}
+          onClose={() => setTypeDrawerOpen(false)}
+          onSaved={() => router.refresh()}
+          companyId={companyId}
+        />
+      )}
+
+      {canApprove && (
+        <AllocateBalanceDrawer
+          open={balanceDrawerOpen}
+          onClose={() => setBalanceDrawerOpen(false)}
+          onSaved={() => router.refresh()}
+          companyId={companyId}
+          employees={employees}
+          leaveTypes={leaveTypes}
+          currentYear={currentYear}
+        />
+      )}
+
       {employeeId && (
         <LeaveRequestDrawer
           open={drawerOpen}
@@ -238,20 +373,25 @@ export default function LeavePage({ canApprove, pendingRequests, myRequests, lea
   );
 }
 
-function Section({ eyebrow, title, count, children }) {
+function Section({ eyebrow, title, count, action, children }) {
   return (
     <div className="mb-7">
-      <p className="font-mono text-[10.5px] tracking-wide uppercase text-[var(--color-accent)] mb-1">
-        {eyebrow}
-      </p>
-      <p className="font-display text-base font-semibold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
-        {title}
-        {count > 0 && (
-          <span className="font-sans text-[11px] font-semibold bg-[#fef3e2] text-[#d68a1f] px-2 py-0.5 rounded-full">
-            {count}
-          </span>
-        )}
-      </p>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className="font-mono text-[10.5px] tracking-wide uppercase text-[var(--color-accent)] mb-1">
+            {eyebrow}
+          </p>
+          <p className="font-display text-base font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
+            {title}
+            {count > 0 && (
+              <span className="font-sans text-[11px] font-semibold bg-[#fef3e2] text-[#d68a1f] px-2 py-0.5 rounded-full">
+                {count}
+              </span>
+            )}
+          </p>
+        </div>
+        {action}
+      </div>
       <div className="bg-white border border-black/[0.06] rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">{children}</div>
       </div>

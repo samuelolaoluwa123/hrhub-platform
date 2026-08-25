@@ -12,9 +12,10 @@ const EMPTY_FORM = {
   department: "",
   employment_type: "full_time",
   start_date: "",
+  manager_id: "",
 };
 
-export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee, companyId }) {
+export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee, companyId, employees }) {
   const supabase = createClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -34,6 +35,7 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
         department: editingEmployee.department ?? "",
         employment_type: editingEmployee.employment_type ?? "full_time",
         start_date: editingEmployee.start_date ?? "",
+        manager_id: editingEmployee.manager_id ?? "",
       });
     } else {
       setForm(EMPTY_FORM);
@@ -49,7 +51,7 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
     setSaving(true);
     setError(null);
 
-    const payload = { ...form, start_date: form.start_date || null };
+    const payload = { ...form, start_date: form.start_date || null, manager_id: form.manager_id || null };
 
     // RLS enforces that only admin/manager can write here. On insert,
     // company_id must be set explicitly (it has no default) — omitting
@@ -199,6 +201,25 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
               />
             </Field>
           </div>
+
+          <Field label="Manager">
+            <select
+              value={form.manager_id}
+              onChange={(e) => update("manager_id", e.target.value)}
+              className={inputClass}
+              onFocus={focusRing}
+              onBlur={clearRing}
+            >
+              <option value="">No manager</option>
+              {employees
+                .filter((emp) => emp.id !== editingEmployee?.id)
+                .map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.first_name} {emp.last_name}
+                  </option>
+                ))}
+            </select>
+          </Field>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 

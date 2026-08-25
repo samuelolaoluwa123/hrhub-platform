@@ -16,7 +16,9 @@ export default async function ProfileRoute() {
 
   const { data: employee } = await supabase
     .from("employees")
-    .select("first_name, last_name, email, phone, job_title, department, employment_type, start_date, status")
+    .select(
+      "first_name, last_name, email, phone, job_title, department, employment_type, start_date, status, manager:employees!employees_manager_id_fkey(first_name, last_name)"
+    )
     .eq("profile_id", user.id)
     .maybeSingle();
 
