@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { sendNotificationEmail } from "@/lib/sendNotificationEmail";
+import { computePayslip } from "@/lib/calculatePayroll";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -154,8 +155,31 @@ export default function RunDetail({ run, employeesWithPayslips, companyId }) {
 
 function AddPayslipDrawer({ employee, run, companyId, onClose, onSaved }) {
   const supabase = createClient();
-  const [gross, setGross] = useState("");
-  const [deductions, setDeductions] = useState("0");
+  const structure = employee.structure;
+  const activeLoans = employee.activeLoans || [];
+
+  // If a salary structure exists, pre-fill from the calculator (see
+  // lib/calculatePayroll.js) — still fully editable before saving,
+  // since one-off cases (unpaid leave, a bonus) come up every run.
+  const initial = structure
+    ? computePayslip({
+        baseSalary: structure.base_salary,
+        allowances: structure.allowances,
+        pensionEmployeeRate: structure.pension_employee_rate,
+      })
+    : null;
+
+  // Whatever's left owed on each approved loan/advance, capped at its
+  // monthly installment — this run's automatic deduction.
+  const loanDeduction = activeLoans.reduce(
+    (sum, l) => sum + Math.min(Number(l.monthly_deduction), Number(l.amount) - Number(l.amount_repaid)),
+    0
+  );
+
+  const [gross, setGross] = useState(initial ? String(Math.round(initial.grossPay)) : "");
+  const [deductions, setDeductions] = useState(
+    String(Math.round((initial ? initial.totalDeductions : 0) + loanDeduction))
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -173,6 +197,17 @@ function AddPayslipDrawer({ employee, run, companyId, onClose, onSaved }) {
       gross_pay: Number(gross),
       deductions: Number(deductions || 0),
       net_pay: net,
+      // Keep the calculated breakdown for reference even if the admin
+      // tweaked the final numbers above — null when there was no
+      // salary structure to calculate from at all (fully manual entry).
+      breakdown: initial
+        ? {
+            base_salary: initial.baseSalary,
+            allowances: initial.allowances,
+            pension_monthly: initial.pensionMonthly,
+            tax_monthly: initial.taxMonthly,
+          }
+        : null,
     });
 
     setSaving(false);
@@ -181,6 +216,22 @@ function AddPayslipDrawer({ employee, run, companyId, onClose, onSaved }) {
       setError(dbError.message);
       return;
     }
+
+    // Apply this run's deduction to each active loan/advance — capped
+    // at what's actually still owed, marking it completed once repaid.
+    await Promise.all(
+      activeLoans.map((l) => {
+        const installment = Math.min(Number(l.monthly_deduction), Number(l.amount) - Number(l.amount_repaid));
+        const newRepaid = Number(l.amount_repaid) + installment;
+        return supabase
+          .from("loans")
+          .update({
+            amount_repaid: newRepaid,
+            status: newRepaid >= Number(l.amount) ? "completed" : "approved",
+          })
+          .eq("id", l.id);
+      })
+    );
 
     if (employee.profile_id) {
       await supabase.from("notifications").insert({
@@ -210,9 +261,20 @@ function AddPayslipDrawer({ employee, run, companyId, onClose, onSaved }) {
       <div className="absolute inset-0 bg-black/35 animate-[fadeIn_200ms_var(--ease-out)]" onClick={onClose} />
       <div className="absolute top-0 right-0 bottom-0 w-full max-w-[360px] bg-white p-7 overflow-y-auto shadow-2xl animate-[slideIn_280ms_var(--ease-out)]">
         <h2 className="font-display text-lg font-semibold text-[var(--color-text-primary)]">Add payslip</h2>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1 mb-6">
+        <p className="text-sm text-[var(--color-text-muted)] mt-1 mb-1">
           For {employee.first_name} {employee.last_name}
         </p>
+        <p className="text-xs mb-1" style={{ color: structure ? "var(--color-primary)" : "var(--color-text-muted)" }}>
+          {structure
+            ? "Pre-filled from their salary structure — pension and estimated tax already factored in. Edit freely before saving."
+            : "No salary structure set for them yet — enter figures manually, or set one up first from the Payroll page."}
+        </p>
+        {loanDeduction > 0 && (
+          <p className="text-xs text-[var(--color-primary)] mb-1">
+            Includes ₦{Math.round(loanDeduction).toLocaleString()} loan/advance repayment for this run, applied automatically on save.
+          </p>
+        )}
+        <div className="mb-6" />
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

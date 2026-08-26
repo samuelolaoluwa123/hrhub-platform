@@ -7,6 +7,15 @@ import { useState } from "react";
 
 const NAV_ITEMS = [
   {
+    href: "/dashboard/me",
+    label: "My Hub",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M3 12l9-9 9 9M5 10v10h14V10" />
+      </svg>
+    ),
+  },
+  {
     href: "/dashboard",
     label: "Overview",
     exact: true,
@@ -22,6 +31,7 @@ const NAV_ITEMS = [
   {
     href: "/dashboard/employees",
     label: "Employees",
+    roles: ["admin", "manager"],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -34,6 +44,7 @@ const NAV_ITEMS = [
   {
     href: "/dashboard/leave",
     label: "Leave",
+    roles: ["admin", "manager"],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -44,15 +55,39 @@ const NAV_ITEMS = [
   {
     href: "/dashboard/payroll",
     label: "Payroll",
+    roles: ["admin"],
     icon: <span className="font-display font-semibold text-[15px] leading-none">₦</span>,
   },
   {
     href: "/dashboard/onboarding",
     label: "Onboarding",
+    roles: ["admin", "manager"],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M9 11l3 3L22 4" />
         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+      </svg>
+    ),
+  },
+  {
+    href: "/dashboard/announcements",
+    label: "Announcements",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M3 11l18-5v12L3 14v-3z" />
+        <path d="M11.6 16.8a2 2 0 1 1-3.2 2.4" />
+      </svg>
+    ),
+  },
+  {
+    href: "/dashboard/recruitment",
+    label: "Recruitment",
+    roles: ["admin", "manager"],
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M19 8v6M22 11h-6" />
       </svg>
     ),
   },
@@ -62,7 +97,7 @@ export default function Sidebar({ fullName, role }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  const items = NAV_ITEMS.filter((item) => !item.adminOnly || role === "admin");
+  const items = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role));
   const initial = (fullName || "?").charAt(0).toUpperCase();
 
   return (
@@ -104,7 +139,7 @@ export default function Sidebar({ fullName, role }) {
           className="
             relative bg-[var(--color-hero-bg)]
             w-full md:w-[234px] md:shrink-0
-            flex flex-col md:h-screen md:sticky md:top-0 px-3.5 py-6
+            flex flex-col md:h-screen px-3.5 py-6
           "
         >
         {/* Ambient glow, echoes the landing page hero without WebGL cost */}

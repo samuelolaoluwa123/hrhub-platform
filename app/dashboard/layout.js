@@ -27,10 +27,10 @@ export default async function DashboardLayout({ children }) {
     .limit(15);
 
   return (
-    <div className="md:flex min-h-screen bg-[var(--color-surface)]">
+    <div className="md:flex md:h-screen md:overflow-hidden min-h-screen bg-[var(--color-surface)]">
       <Sidebar fullName={profile?.full_name} role={profile?.role} />
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 md:h-screen md:overflow-y-auto">
         <Topbar companyName={profile?.companies?.name} notifications={notifications ?? []} />
         <main className="p-6 md:p-9 animate-[fadeIn_300ms_var(--ease-out)]">
           {children}

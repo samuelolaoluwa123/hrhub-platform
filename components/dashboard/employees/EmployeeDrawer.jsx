@@ -12,9 +12,11 @@ const EMPTY_FORM = {
   department: "",
   employment_type: "full_time",
   start_date: "",
+  manager_id: "",
+  birth_date: "",
 };
 
-export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee, companyId }) {
+export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee, companyId, employees }) {
   const supabase = createClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -34,6 +36,8 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
         department: editingEmployee.department ?? "",
         employment_type: editingEmployee.employment_type ?? "full_time",
         start_date: editingEmployee.start_date ?? "",
+        manager_id: editingEmployee.manager_id ?? "",
+        birth_date: editingEmployee.birth_date ?? "",
       });
     } else {
       setForm(EMPTY_FORM);
@@ -49,7 +53,12 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
     setSaving(true);
     setError(null);
 
-    const payload = { ...form, start_date: form.start_date || null };
+    const payload = {
+      ...form,
+      start_date: form.start_date || null,
+      manager_id: form.manager_id || null,
+      birth_date: form.birth_date || null,
+    };
 
     // RLS enforces that only admin/manager can write here. On insert,
     // company_id must be set explicitly (it has no default) — omitting
@@ -199,6 +208,39 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
               />
             </Field>
           </div>
+
+          <Field label="Birthday">
+            <input
+              type="date"
+              value={form.birth_date}
+              onChange={(e) => update("birth_date", e.target.value)}
+              className={inputClass}
+              onFocus={focusRing}
+              onBlur={clearRing}
+            />
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+              Only the month and day are ever shown to anyone — used for the birthday reminder on Overview.
+            </p>
+          </Field>
+
+          <Field label="Manager">
+            <select
+              value={form.manager_id}
+              onChange={(e) => update("manager_id", e.target.value)}
+              className={inputClass}
+              onFocus={focusRing}
+              onBlur={clearRing}
+            >
+              <option value="">No manager</option>
+              {employees
+                .filter((emp) => emp.id !== editingEmployee?.id)
+                .map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.first_name} {emp.last_name}
+                  </option>
+                ))}
+            </select>
+          </Field>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 

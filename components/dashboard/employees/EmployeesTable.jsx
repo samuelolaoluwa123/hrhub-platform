@@ -47,6 +47,7 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [invitingId, setInvitingId] = useState(null);
+  const [inviteError, setInviteError] = useState(null);
 
   const employees = initialEmployees;
 
@@ -85,10 +86,15 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
   }
 
   async function handleBulkDeactivate() {
-    await supabase
+    if (!canManage) return;
+    const { error } = await supabase
       .from("employees")
       .update({ status: "terminated" })
       .in("id", Array.from(selected));
+    if (error) {
+      alert(error.message);
+      return;
+    }
     refresh();
   }
 
@@ -104,20 +110,31 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
 
   async function handleInvite(emp) {
     setInvitingId(emp.id);
+    setInviteError(null);
     try {
       const res = await fetch("/api/invite-employee", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employeeId: emp.id }),
       });
-      const data = await res.json();
+      // The body isn't guaranteed to be valid JSON (a framework-level
+      // 500 can return an empty or HTML body) — never let that throw
+      // past this point, and never surface a raw non-string value.
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(data.error || "Failed to send invite.");
+        const detail = typeof data?.error === "string" && data.error ? data.error : null;
+        console.error("Invite to portal failed:", res.status, data);
+        setInviteError(
+          `Couldn't invite ${emp.first_name} — ${
+            detail ??
+            "the email service didn't accept it. If you're on Resend's sandbox sender, it can only deliver to the address your Resend account is registered under — verify a domain at resend.com/domains to invite anyone else."
+          }`
+        );
       } else {
         router.refresh();
       }
     } catch {
-      alert("Failed to send invite. Check your connection and try again.");
+      setInviteError(`Couldn't reach the server to invite ${emp.first_name}. Check your connection and try again.`);
     }
     setInvitingId(null);
   }
@@ -147,7 +164,20 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
         )}
       </div>
 
-      {selected.size > 0 ? (
+      {inviteError && (
+        <div className="flex items-start gap-3 bg-[#fde8e8] text-[#cc3333] rounded-lg px-4 py-3 mb-4 text-sm">
+          <span className="flex-1">{inviteError}</span>
+          <button
+            onClick={() => setInviteError(null)}
+            aria-label="Dismiss"
+            className="shrink-0 text-[#cc3333]/70 hover:text-[#cc3333]"
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
+      {canManage && selected.size > 0 ? (
         <div className="flex items-center gap-4 bg-[var(--color-text-primary)] text-white rounded-lg px-4 py-2.5 mb-4 text-sm">
           <span className="font-medium">{selected.size} selected</span>
           <div className="ml-auto flex gap-2">
@@ -199,14 +229,16 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
           <table className="w-full text-sm min-w-[720px]">
             <thead>
               <tr className="text-left text-[11px] font-semibold tracking-wide uppercase text-[#9089a0] border-b border-black/[0.06]">
-                <th className="w-8 py-3 pl-4">
-                  <input
-                    type="checkbox"
-                    className="accent-[var(--color-primary)]"
-                    checked={selected.size === filtered.length}
-                    onChange={toggleAll}
-                  />
-                </th>
+                {canManage && (
+                  <th className="w-8 py-3 pl-4">
+                    <input
+                      type="checkbox"
+                      className="accent-[var(--color-primary)]"
+                      checked={selected.size === filtered.length}
+                      onChange={toggleAll}
+                    />
+                  </th>
+                )}
                 <th className="py-3 px-3">Name</th>
                 <th className="py-3 px-3">Role</th>
                 <th className="py-3 px-3">Department</th>
@@ -225,14 +257,16 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
                     animation: `rowIn 400ms var(--ease-out) ${i * 0.04}s both`,
                   }}
                 >
-                  <td className="py-3.5 pl-4">
-                    <input
-                      type="checkbox"
-                      className="accent-[var(--color-primary)]"
-                      checked={selected.has(emp.id)}
-                      onChange={() => toggleRow(emp.id)}
-                    />
-                  </td>
+                  {canManage && (
+                    <td className="py-3.5 pl-4">
+                      <input
+                        type="checkbox"
+                        className="accent-[var(--color-primary)]"
+                        checked={selected.has(emp.id)}
+                        onChange={() => toggleRow(emp.id)}
+                      />
+                    </td>
+                  )}
                   <td className="py-3.5 px-3">
                     <div className="flex items-center gap-2.5">
                       <div
@@ -279,7 +313,7 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
                         <button
                           onClick={() => handleInvite(emp)}
                           disabled={invitingId === emp.id}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-[11px] font-medium px-2.5 py-1 rounded-md bg-[var(--color-violet-tint)] text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white disabled:opacity-50"
+                          className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-[var(--color-violet-tint)] text-[var(--color-primary)] transition-colors duration-150 hover:bg-[var(--color-primary)] hover:text-white disabled:opacity-50"
                           style={{ transitionTimingFunction: "var(--ease-out)" }}
                         >
                           {invitingId === emp.id ? "Sending..." : "Invite to portal"}
@@ -293,7 +327,7 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
                       {canManage && (
                         <button
                           onClick={() => openEdit(emp)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 w-7 h-7 rounded-md flex items-center justify-center text-[var(--color-text-muted)] hover:bg-black/[0.06] hover:text-[var(--color-text-primary)] shrink-0"
+                          className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--color-text-muted)] transition-colors duration-150 hover:bg-black/[0.06] hover:text-[var(--color-text-primary)] shrink-0"
                           style={{ transitionTimingFunction: "var(--ease-out)" }}
                           aria-label={`Edit ${emp.first_name}`}
                         >
@@ -319,6 +353,7 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
         onSaved={refresh}
         editingEmployee={editingEmployee}
         companyId={companyId}
+        employees={employees}
       />
 
       <style jsx global>{`

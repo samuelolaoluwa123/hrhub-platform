@@ -1,5 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 
+const MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return "GOOD MORNING";
@@ -21,13 +26,13 @@ export default async function DashboardPage() {
 
   // RLS already scopes these to the caller's own company — the
   // .eq() below is just an explicit, readable filter on top of that.
-  const [{ count: employeeCount }, { count: pendingLeaveCount }, { data: nextPayrollRun }] =
+  // Employee headcount goes through an RPC rather than a row count:
+  // employees can now only SELECT their own row (and their manager's),
+  // so a direct count would silently undercount for anyone but
+  // admin/manager. The function returns just the number, no rows.
+  const [{ data: employeeCount }, { count: pendingLeaveCount }, { data: nextPayrollRun }, { data: celebrations }] =
     await Promise.all([
-      supabase
-        .from("employees")
-        .select("id", { count: "exact", head: true })
-        .eq("company_id", profile?.company_id)
-        .eq("status", "active"),
+      supabase.rpc("active_employee_count"),
       supabase
         .from("leave_requests")
         .select("id", { count: "exact", head: true })
@@ -42,6 +47,10 @@ export default async function DashboardPage() {
         .order("period_month", { ascending: true })
         .limit(1)
         .maybeSingle(),
+      // Company-wide by design, but through an RPC that returns only
+      // name + month/day — never the birth year, never anything else
+      // about the person. See upcoming_celebrations() in the migration.
+      supabase.rpc("upcoming_celebrations", { days_ahead: 30 }),
     ]);
 
   const payrollLabel = nextPayrollRun
@@ -97,6 +106,30 @@ export default async function DashboardPage() {
           label="Next payroll run"
         />
       </div>
+
+      {celebrations?.length > 0 && (
+        <div className="mt-6 bg-white border border-black/[0.06] rounded-2xl p-5">
+          <p className="text-[13px] font-semibold text-[var(--color-text-primary)] mb-3.5">
+            Coming up
+          </p>
+          <div className="space-y-2.5">
+            {celebrations.map((c) => (
+              <div key={`${c.employee_id}-${c.kind}`} className="flex items-center gap-3 text-sm">
+                <span className="text-lg leading-none">{c.kind === "birthday" ? "🎂" : "🎉"}</span>
+                <span className="text-[var(--color-text-primary)]">
+                  {c.first_name} {c.last_name}
+                </span>
+                <span className="text-[var(--color-text-muted)]">
+                  {c.kind === "birthday" ? "birthday" : `${c.years}-year anniversary`}
+                </span>
+                <span className="ml-auto font-mono text-xs text-[var(--color-text-muted)]">
+                  {MONTH_NAMES[c.month - 1]} {c.day}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

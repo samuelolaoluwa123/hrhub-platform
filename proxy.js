@@ -11,9 +11,10 @@ const ROLE_ONLY_PREFIXES = [
   { prefix: "/dashboard/admin", roles: ["admin"] },
   { prefix: "/dashboard/payroll/", roles: ["admin"] },
   { prefix: "/dashboard/approvals", roles: ["admin", "manager"] },
+  { prefix: "/dashboard/employees", roles: ["admin", "manager"] },
 ];
 
-export async function middleware(request) {
+export async function proxy(request) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
