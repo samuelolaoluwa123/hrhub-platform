@@ -1,0 +1,27 @@
+name: Keep Supabase alive
+
+# Supabase's free tier pauses a project after 7 days with no database
+# activity — the whole app goes down until someone manually unpauses
+# it from the dashboard. This just makes one lightweight read every
+# few days so that never happens. It's a stopgap for staying on the
+# free tier, not a substitute for Supabase Pro (which also adds real
+# backups, a higher connection/storage ceiling, etc.) — see the
+# conversation this came out of for the full cost breakdown.
+
+on:
+  schedule:
+    # Every 3 days at 06:00 UTC — comfortably inside the 7-day pause
+    # window even if a run is ever delayed.
+    - cron: "0 6 */3 * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the database
+        run: |
+          curl -sf "https://gcmsnibvomqmnqcavocn.supabase.co/rest/v1/companies?select=id&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -o /dev/null
