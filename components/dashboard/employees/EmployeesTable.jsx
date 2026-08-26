@@ -313,7 +313,7 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
                         <button
                           onClick={() => handleInvite(emp)}
                           disabled={invitingId === emp.id}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-[11px] font-medium px-2.5 py-1 rounded-md bg-[var(--color-violet-tint)] text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white disabled:opacity-50"
+                          className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-[var(--color-violet-tint)] text-[var(--color-primary)] transition-colors duration-150 hover:bg-[var(--color-primary)] hover:text-white disabled:opacity-50"
                           style={{ transitionTimingFunction: "var(--ease-out)" }}
                         >
                           {invitingId === emp.id ? "Sending..." : "Invite to portal"}
@@ -327,7 +327,7 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
                       {canManage && (
                         <button
                           onClick={() => openEdit(emp)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 w-7 h-7 rounded-md flex items-center justify-center text-[var(--color-text-muted)] hover:bg-black/[0.06] hover:text-[var(--color-text-primary)] shrink-0"
+                          className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--color-text-muted)] transition-colors duration-150 hover:bg-black/[0.06] hover:text-[var(--color-text-primary)] shrink-0"
                           style={{ transitionTimingFunction: "var(--ease-out)" }}
                           aria-label={`Edit ${emp.first_name}`}
                         >
