@@ -47,6 +47,7 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [invitingId, setInvitingId] = useState(null);
+  const [inviteError, setInviteError] = useState(null);
 
   const employees = initialEmployees;
 
@@ -109,20 +110,31 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
 
   async function handleInvite(emp) {
     setInvitingId(emp.id);
+    setInviteError(null);
     try {
       const res = await fetch("/api/invite-employee", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employeeId: emp.id }),
       });
-      const data = await res.json();
+      // The body isn't guaranteed to be valid JSON (a framework-level
+      // 500 can return an empty or HTML body) — never let that throw
+      // past this point, and never surface a raw non-string value.
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(data.error || "Failed to send invite.");
+        const detail = typeof data?.error === "string" && data.error ? data.error : null;
+        console.error("Invite to portal failed:", res.status, data);
+        setInviteError(
+          `Couldn't invite ${emp.first_name} — ${
+            detail ??
+            "the email service didn't accept it. If you're on Resend's sandbox sender, it can only deliver to the address your Resend account is registered under — verify a domain at resend.com/domains to invite anyone else."
+          }`
+        );
       } else {
         router.refresh();
       }
     } catch {
-      alert("Failed to send invite. Check your connection and try again.");
+      setInviteError(`Couldn't reach the server to invite ${emp.first_name}. Check your connection and try again.`);
     }
     setInvitingId(null);
   }
@@ -151,6 +163,19 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
           </button>
         )}
       </div>
+
+      {inviteError && (
+        <div className="flex items-start gap-3 bg-[#fde8e8] text-[#cc3333] rounded-lg px-4 py-3 mb-4 text-sm">
+          <span className="flex-1">{inviteError}</span>
+          <button
+            onClick={() => setInviteError(null)}
+            aria-label="Dismiss"
+            className="shrink-0 text-[#cc3333]/70 hover:text-[#cc3333]"
+          >
+            &times;
+          </button>
+        </div>
+      )}
 
       {canManage && selected.size > 0 ? (
         <div className="flex items-center gap-4 bg-[var(--color-text-primary)] text-white rounded-lg px-4 py-2.5 mb-4 text-sm">

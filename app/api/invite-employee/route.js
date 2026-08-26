@@ -3,6 +3,22 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request) {
+  try {
+    return await handleInvite(request);
+  } catch (err) {
+    // Anything thrown here (rather than returned as {error}) would
+    // otherwise produce Next's generic error response instead of a
+    // real message the UI can show — this is what makes that
+    // impossible.
+    console.error("invite-employee route threw:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Something went wrong sending the invite." },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleInvite(request) {
   const { employeeId } = await request.json();
 
   if (!employeeId) {
