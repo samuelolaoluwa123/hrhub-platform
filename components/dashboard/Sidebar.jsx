@@ -44,6 +44,7 @@ const NAV_ITEMS = [
   {
     href: "/dashboard/leave",
     label: "Leave",
+    roles: ["admin", "manager"],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -54,11 +55,13 @@ const NAV_ITEMS = [
   {
     href: "/dashboard/payroll",
     label: "Payroll",
+    roles: ["admin"],
     icon: <span className="font-display font-semibold text-[15px] leading-none">₦</span>,
   },
   {
     href: "/dashboard/onboarding",
     label: "Onboarding",
+    roles: ["admin", "manager"],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M9 11l3 3L22 4" />
