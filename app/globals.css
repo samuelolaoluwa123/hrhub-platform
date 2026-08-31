@@ -23,6 +23,10 @@
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background-color: var(--color-surface);
   color: var(--color-text-primary);

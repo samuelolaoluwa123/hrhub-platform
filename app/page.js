@@ -1,12 +1,49 @@
 import Image from "next/image";
 import Hero3D from "@/components/marketing/Hero3D";
 import Reveal from "@/components/marketing/Reveal";
+import BrowserFrame from "@/components/marketing/BrowserFrame";
 
-const modules = [
-  { label: "Records", name: "Employee Records", desc: "Profiles, contracts, and documents in one place instead of scattered folders." },
-  { label: "Leave", name: "Leave Management", desc: "Request, approve, and track balances — no more spreadsheet tallies." },
-  { label: "Payroll", name: "Payslips", desc: "Payroll input in, downloadable payslips out, automatically." },
-  { label: "Onboarding", name: "Onboarding", desc: "A checklist per new hire, customized per company." },
+const features = [
+  {
+    label: "Employees",
+    eyebrow: "RECORDS",
+    title: "One directory for your whole team.",
+    desc: "Every employee's role, department, contact details, and employment history in one searchable place — instead of scattered spreadsheets nobody's sure is current.",
+    points: ["Role & department at a glance", "Self-service portal invites", "Full employment history"],
+    img: "/marketing/employees.png",
+    imgAlt: "HRhub employee directory showing a list of staff with roles and departments",
+    aspect: "1573/927",
+  },
+  {
+    label: "Payroll",
+    eyebrow: "PAYROLL",
+    title: "Payroll that runs itself.",
+    desc: "Set a salary structure once — base, allowances, pension — and HRhub calculates PAYE and net pay automatically for every run. No more rebuilding the same spreadsheet formula every month.",
+    points: ["Automatic PAYE & pension calculation", "One run, every payslip at once", "Editable before anything is final"],
+    img: "/marketing/payroll.png",
+    imgAlt: "HRhub payroll page showing a paid payroll run and per-employee salary structures",
+    aspect: "1618/912",
+  },
+  {
+    label: "Recruitment",
+    eyebrow: "HIRING",
+    title: "Hiring, without the spreadsheet chaos.",
+    desc: "Requisition, approval, job posting, and every applicant's stage — from applied to offer — tracked in one pipeline your whole hiring team can see.",
+    points: ["Approval workflow before a role goes live", "Applicant pipeline by stage", "Interview scheduling built in"],
+    img: "/marketing/recruitment.png",
+    imgAlt: "HRhub recruitment page showing open job postings and applicant counts",
+    aspect: "1623/926",
+  },
+  {
+    label: "Onboarding",
+    eyebrow: "ONBOARDING",
+    title: "New hires, set up from day one.",
+    desc: "A checklist per new hire — contract, equipment, benefits — assigned automatically and tracked to completion, so nothing falls through the cracks in someone's first week.",
+    points: ["Checklists assigned automatically", "Progress visible across the whole team", "Customizable per company"],
+    img: "/marketing/onboarding.png",
+    imgAlt: "HRhub onboarding page showing team onboarding progress checklists",
+    aspect: "1615/912",
+  },
 ];
 
 export default function LandingPage() {
@@ -38,8 +75,8 @@ export default function LandingPage() {
           </h1>
           <p className="mt-6 text-lg text-[var(--color-primary-light)] max-w-xl">
             HRhub turns the HR consulting you already trust into software
-            built for your business — records, leave, and payroll, all in
-            one place.
+            built for your business — records, leave, payroll, and hiring,
+            all in one place.
           </p>
           <a
             href="#modules"
@@ -57,8 +94,20 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* PRODUCT PREVIEW — the first real proof, right after the hero */}
+      <section className="px-6 -mt-16 md:-mt-24 relative z-10">
+        <Reveal className="max-w-4xl mx-auto">
+          <BrowserFrame
+            src="/marketing/overview.png"
+            alt="HRhub dashboard overview showing active employees, pending leave requests, and upcoming birthdays"
+            aspect="1920/917"
+            sizes="(max-width: 944px) calc(100vw - 48px), 896px"
+          />
+        </Reveal>
+      </section>
+
       {/* PROBLEM / SOLUTION — asymmetric, left-anchored eyebrow */}
-      <section className="py-32 px-6">
+      <section className="pt-24 pb-32 px-6">
         <div className="max-w-4xl mx-auto grid md:grid-cols-[auto_1fr] gap-6 md:gap-16">
           <Reveal>
             <p className="font-mono text-xs tracking-widest text-[var(--color-accent)] md:pt-2">
@@ -80,66 +129,55 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* MODULES — divider list, not cards, in a sticky two-column layout */}
-      <section id="modules" className="py-32 px-6 bg-[var(--color-violet-tint)]">
-        <div className="max-w-5xl mx-auto grid md:grid-cols-[1fr_1.6fr] gap-10 md:gap-16">
+      {/* FEATURES — alternating image/text, each backed by a real screenshot */}
+      <section id="modules" className="py-8 px-6 bg-[var(--color-violet-tint)]">
+        <div className="max-w-5xl mx-auto text-center pt-16 pb-4">
           <Reveal>
             <p className="font-mono text-xs tracking-widest text-[var(--color-accent)]">
               WHAT'S INCLUDED
             </p>
-            <h2 className="font-display text-3xl font-semibold mt-3">
+            <h2 className="font-display text-3xl md:text-4xl font-semibold mt-3">
               Four modules. One login.
             </h2>
           </Reveal>
-
-          <div>
-            {modules.map((m, i) => (
-              <Reveal key={m.name} delay={i * 70}>
-                <div
-                  className="group py-7 border-t border-[var(--color-text-primary)]/10 first:border-t-0 md:first:border-t transition-colors duration-200"
-                  style={{ transitionTimingFunction: "var(--ease-out)" }}
-                >
-                  <div className="flex items-baseline justify-between">
-                    <h3 className="font-display text-xl font-semibold group-hover:text-[var(--color-primary)] transition-colors duration-200"
-                        style={{ transitionTimingFunction: "var(--ease-out)" }}>
-                      {m.name}
-                    </h3>
-                    <span className="font-mono text-xs text-[var(--color-text-muted)] shrink-0 ml-4">
-                      {m.label}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-[var(--color-text-muted)] max-w-md">
-                    {m.desc}
-                  </p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
         </div>
-      </section>
 
-      {/* PRICING — no card, the number itself is the design */}
-      <section className="py-32 px-6">
-        <div className="max-w-3xl mx-auto text-center">
-          <Reveal>
-            <p className="font-mono text-xs tracking-widest text-[var(--color-accent)]">
-              PRICING
-            </p>
-            <h2 className="font-display text-3xl font-semibold mt-3">
-              One flat price. No per-seat surprises.
-            </h2>
-          </Reveal>
-          <Reveal delay={100}>
-            <p className="font-display text-7xl md:text-8xl font-semibold mt-12">
-              ₦20,000
-              <span className="text-xl font-normal text-[var(--color-text-muted)]">
-                {" "}/month
-              </span>
-            </p>
-            <p className="mt-3 text-[var(--color-text-muted)]">
-              up to 15 employees · every module included
-            </p>
-          </Reveal>
+        <div className="max-w-5xl mx-auto">
+          {features.map((f, i) => (
+            <div
+              key={f.label}
+              className="py-20 grid md:grid-cols-2 gap-10 md:gap-16 items-center"
+            >
+              <Reveal
+                className={i % 2 === 1 ? "md:order-2" : ""}
+              >
+                <BrowserFrame src={f.img} alt={f.imgAlt} aspect={f.aspect} />
+              </Reveal>
+
+              <Reveal delay={80} className={i % 2 === 1 ? "md:order-1" : ""}>
+                <p className="font-mono text-xs tracking-widest text-[var(--color-accent)]">
+                  {f.eyebrow}
+                </p>
+                <h3 className="font-display text-2xl md:text-3xl font-semibold mt-3">
+                  {f.title}
+                </h3>
+                <p className="mt-4 text-[var(--color-text-muted)] leading-relaxed">
+                  {f.desc}
+                </p>
+                <ul className="mt-6 space-y-2.5">
+                  {f.points.map((p) => (
+                    <li key={p} className="flex items-start gap-2.5 text-sm">
+                      <span
+                        className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: "var(--color-primary)" }}
+                      />
+                      <span className="text-[var(--color-text-primary)]">{p}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Reveal>
+            </div>
+          ))}
         </div>
       </section>
 
