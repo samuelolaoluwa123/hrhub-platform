@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import DocumentsPage from "@/components/dashboard/documents/DocumentsPage";
 
@@ -7,6 +8,10 @@ export default async function DocumentsRoute() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
 
   const { data: profile } = await supabase
     .from("profiles")

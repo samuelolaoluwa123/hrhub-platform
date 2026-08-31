@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AnnouncementsPage from "@/components/dashboard/announcements/AnnouncementsPage";
 
@@ -7,6 +8,10 @@ export default async function AnnouncementsRoute() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
 
   const { data: profile } = await supabase
     .from("profiles")

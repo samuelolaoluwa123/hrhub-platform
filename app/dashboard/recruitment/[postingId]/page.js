@@ -10,6 +10,10 @@ export default async function PostingDetailRoute({ params }) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (!user) {
+    redirect("/login");
+  }
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("role, company_id")
