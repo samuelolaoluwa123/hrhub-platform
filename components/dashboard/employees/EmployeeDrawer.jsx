@@ -14,13 +14,23 @@ const EMPTY_FORM = {
   start_date: "",
   manager_id: "",
   birth_date: "",
+  access_level: "employee",
 };
 
-export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee, companyId, employees }) {
+export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee, companyId, employees, isAdmin, currentProfileId }) {
   const supabase = createClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  // Only an admin can change access level, only for someone who already
+  // has portal access (a role only means something once there's a login
+  // to attach it to), and never for their own row here — self-demotion
+  // through this form is confusing UX; the last-admin safeguard is a DB
+  // trigger regardless, but this keeps someone from locking themselves
+  // out of admin-only pages mid-edit.
+  const canEditAccessLevel =
+    isAdmin && !!editingEmployee?.profile_id && editingEmployee.profile_id !== currentProfileId;
 
   // Reset (or populate, for edit) the form each time the drawer opens
   useEffect(() => {
@@ -38,6 +48,7 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
         start_date: editingEmployee.start_date ?? "",
         manager_id: editingEmployee.manager_id ?? "",
         birth_date: editingEmployee.birth_date ?? "",
+        access_level: editingEmployee.profiles?.role ?? "employee",
       });
     } else {
       setForm(EMPTY_FORM);
@@ -53,8 +64,9 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
     setSaving(true);
     setError(null);
 
+    const { access_level, ...employeeFields } = form;
     const payload = {
-      ...form,
+      ...employeeFields,
       start_date: form.start_date || null,
       manager_id: form.manager_id || null,
       birth_date: form.birth_date || null,
@@ -70,6 +82,18 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
 
     if (editingEmployee) {
       ({ error: dbError } = await supabase.from("employees").update(payload).eq("id", editingEmployee.id));
+
+      // Access level lives on profiles, not employees — a separate write,
+      // and only attempted if this drawer actually offered the control
+      // and the value changed (avoids a no-op update tripping the
+      // last-admin trigger on an unrelated field change).
+      if (!dbError && canEditAccessLevel && access_level !== (editingEmployee.profiles?.role ?? "employee")) {
+        const { error: roleError } = await supabase
+          .from("profiles")
+          .update({ role: access_level })
+          .eq("id", editingEmployee.profile_id);
+        dbError = roleError;
+      }
     } else {
       const { data: newEmployee, error: insertError } = await supabase
         .from("employees")
@@ -241,6 +265,25 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
                 ))}
             </select>
           </Field>
+
+          {canEditAccessLevel && (
+            <Field label="Access level">
+              <select
+                value={form.access_level}
+                onChange={(e) => update("access_level", e.target.value)}
+                className={inputClass}
+                onFocus={focusRing}
+                onBlur={clearRing}
+              >
+                <option value="employee">Employee</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+              </select>
+              <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+                Controls what they can see and manage — Admin and Manager can access Payroll, Recruitment, and company-wide records.
+              </p>
+            </Field>
+          )}
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 

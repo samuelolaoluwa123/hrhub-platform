@@ -37,7 +37,7 @@ const STATUS_BADGE = {
 };
 const STATUS_LABEL = { active: "Active", on_leave: "On leave", terminated: "Terminated" };
 
-export default function EmployeesTable({ initialEmployees, canManage, companyId }) {
+export default function EmployeesTable({ initialEmployees, canManage, isAdmin, currentProfileId, companyId }) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -354,6 +354,8 @@ export default function EmployeesTable({ initialEmployees, canManage, companyId 
         editingEmployee={editingEmployee}
         companyId={companyId}
         employees={employees}
+        isAdmin={isAdmin}
+        currentProfileId={currentProfileId}
       />
 
       <style jsx global>{`

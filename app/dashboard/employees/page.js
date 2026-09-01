@@ -22,7 +22,7 @@ export default async function EmployeesPage() {
   // RLS already scopes this to the caller's own company.
   const { data: employees } = await supabase
     .from("employees")
-    .select("*")
+    .select("*, profiles!employees_profile_id_fkey(role)")
     .order("created_at", { ascending: false });
 
   const canManage = profile?.role === "admin" || profile?.role === "manager";
@@ -31,6 +31,8 @@ export default async function EmployeesPage() {
     <EmployeesTable
       initialEmployees={employees ?? []}
       canManage={canManage}
+      isAdmin={profile?.role === "admin"}
+      currentProfileId={user.id}
       companyId={profile?.company_id}
     />
   );
