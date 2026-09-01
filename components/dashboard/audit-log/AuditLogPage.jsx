@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 const FILTERS = [
   { key: "all", label: "All", actions: null },
   { key: "salary", label: "Salary", actions: ["salary_changed"] },
-  { key: "employee_status", label: "Employee status", actions: ["employee_status_changed"] },
+  { key: "employee_status", label: "Employee status", actions: ["employee_status_changed", "employee_exited"] },
   { key: "leave", label: "Leave", actions: ["leave_status_changed"] },
   { key: "payroll", label: "Payroll", actions: ["payroll_run_created", "payroll_run_status_changed"] },
   { key: "loans", label: "Loans", actions: ["loan_status_changed"] },
@@ -14,6 +14,7 @@ const FILTERS = [
 const ACTION_LABEL = {
   salary_changed: "Salary changed",
   employee_status_changed: "Employee status changed",
+  employee_exited: "Employee exit recorded",
   leave_status_changed: "Leave request",
   payroll_run_created: "Payroll run created",
   payroll_run_status_changed: "Payroll run",
@@ -21,9 +22,6 @@ const ACTION_LABEL = {
 };
 
 const STATUS_LABEL = {
-  active: "Active",
-  on_leave: "On leave",
-  terminated: "Terminated",
   pending: "Pending",
   approved: "Approved",
   rejected: "Rejected",
@@ -64,7 +62,13 @@ function describe(entry) {
       return "Allowances updated";
     }
     case "employee_status_changed":
-      return `Status changed from ${statusLabel(old_value?.status)} to ${statusLabel(new_value?.status)}`;
+      // Status values are already display-ready text now (Phase 1.1
+      // made them company-configurable) — no lookup table to run
+      // through, unlike the other action types below which still use
+      // fixed lowercase status values.
+      return `Status changed from ${old_value?.status ?? "—"} to ${new_value?.status ?? "—"}`;
+    case "employee_exited":
+      return `Exited as "${new_value?.exit_status ?? "—"}"${new_value?.exit_reason ? ` — ${new_value.exit_reason}` : ""}`;
     case "leave_status_changed":
       return `Leave request ${statusLabel(new_value?.status).toLowerCase()} (was ${statusLabel(old_value?.status).toLowerCase()})`;
     case "payroll_run_created": {
@@ -188,11 +192,23 @@ export default function AuditLogPage({ entries }) {
                   </span>
                 </div>
                 <p className="text-sm text-[var(--color-text-muted)] mt-0.5">{describe(entry)}</p>
-                {entry.reason && (
-                  <p className="text-xs text-[var(--color-primary)] bg-[var(--color-violet-tint)] inline-block px-2 py-0.5 rounded-md mt-1.5">
-                    Reason: {entry.reason}
-                  </p>
-                )}
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {entry.reason && (
+                    <span className="text-xs text-[var(--color-primary)] bg-[var(--color-violet-tint)] px-2 py-0.5 rounded-md">
+                      Reason: {entry.reason}
+                    </span>
+                  )}
+                  {entry.effective_date && (
+                    <span className="text-xs text-[var(--color-text-muted)] bg-[#f3f2f5] px-2 py-0.5 rounded-md">
+                      Effective {new Date(entry.effective_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </span>
+                  )}
+                  {entry.notes && (
+                    <span className="text-xs text-[var(--color-text-muted)] bg-[#f3f2f5] px-2 py-0.5 rounded-md">
+                      Notes: {entry.notes}
+                    </span>
+                  )}
+                </div>
                 <p className="text-[11px] text-[var(--color-text-muted)] mt-1.5">
                   by {entry.actor_name ?? "System"}
                 </p>

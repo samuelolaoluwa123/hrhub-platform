@@ -29,6 +29,18 @@ export default async function PayrollRoute() {
 
   const employeeId = myEmployeeRow?.id ?? null;
 
+  // Statuses are company-configurable now (Phase 1.1) — "active" isn't
+  // a fixed string anymore, so payroll eligibility has to look up which
+  // status names currently count as active headcount for this company.
+  let activeStatusNames = [];
+  if (canManage) {
+    const { data: activeStatuses } = await supabase
+      .from("employee_statuses")
+      .select("name")
+      .eq("is_active_headcount", true);
+    activeStatusNames = (activeStatuses ?? []).map((s) => s.name);
+  }
+
   // Employee headcount goes through an RPC rather than a row count —
   // employees can now only SELECT their own row (and their manager's),
   // so a direct count would silently undercount for anyone but
@@ -64,8 +76,8 @@ export default async function PayrollRoute() {
           .from("salary_structures")
           .select("id, employee_id, base_salary, allowances, pension_employee_rate, employees(first_name, last_name)")
       : Promise.resolve({ data: [] }),
-    canManage
-      ? supabase.from("employees").select("id, first_name, last_name").eq("status", "active").order("first_name")
+    canManage && activeStatusNames.length
+      ? supabase.from("employees").select("id, first_name, last_name").in("status", activeStatusNames).order("first_name")
       : Promise.resolve({ data: [] }),
   ]);
 

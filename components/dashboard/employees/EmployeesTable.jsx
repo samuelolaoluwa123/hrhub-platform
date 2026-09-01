@@ -2,15 +2,9 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import EmployeeDrawer from "./EmployeeDrawer";
-
-const FILTERS = [
-  { key: "all", label: "All" },
-  { key: "active", label: "Active" },
-  { key: "on_leave", label: "On leave" },
-  { key: "terminated", label: "Terminated" },
-];
+import ChangeStatusDrawer from "./ChangeStatusDrawer";
+import ExitEmployeeDrawer from "./ExitEmployeeDrawer";
 
 const AVATAR_GRADIENTS = [
   "linear-gradient(135deg,#9b50e9,#8224e3)",
@@ -30,26 +24,30 @@ function initials(first, last) {
   return `${(first || "?")[0]}${(last || "")[0] || ""}`.toUpperCase();
 }
 
-const STATUS_BADGE = {
-  active: "bg-[#e8f9f0] text-[#1a9c5f]",
-  on_leave: "bg-[#fef3e2] text-[#d68a1f]",
-  terminated: "bg-[#f3f2f5] text-[#706f83]",
-};
-const STATUS_LABEL = { active: "Active", on_leave: "On leave", terminated: "Terminated" };
+// Badge color is derived from the status's flags, not its name — the
+// list is company-configurable now, so there's no fixed set of names
+// to hardcode a lookup table against.
+function badgeClass(statusMeta) {
+  if (!statusMeta) return "bg-[#f3f2f5] text-[#706f83]";
+  if (statusMeta.is_exit) return "bg-[#f3f2f5] text-[#706f83]";
+  if (statusMeta.is_active_headcount) return "bg-[#e8f9f0] text-[#1a9c5f]";
+  return "bg-[#fef3e2] text-[#d68a1f]";
+}
 
-export default function EmployeesTable({ initialEmployees, canManage, isAdmin, currentProfileId, companyId }) {
+export default function EmployeesTable({ initialEmployees, statuses, canManage, isAdmin, currentProfileId, companyId }) {
   const router = useRouter();
-  const supabase = createClient();
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
-  const [selected, setSelected] = useState(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
+  const [statusDrawerEmployee, setStatusDrawerEmployee] = useState(null);
+  const [exitDrawerEmployee, setExitDrawerEmployee] = useState(null);
   const [invitingId, setInvitingId] = useState(null);
   const [inviteError, setInviteError] = useState(null);
 
   const employees = initialEmployees;
+  const statusByName = useMemo(() => new Map(statuses.map((s) => [s.name, s])), [statuses]);
 
   const filtered = useMemo(() => {
     return employees.filter((emp) => {
@@ -63,39 +61,11 @@ export default function EmployeesTable({ initialEmployees, canManage, isAdmin, c
     });
   }, [employees, filter, search]);
 
-  const activeCount = employees.filter((e) => e.status === "active").length;
-  const onLeaveCount = employees.filter((e) => e.status === "on_leave").length;
-
-  function toggleRow(id) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }
-
-  function toggleAll() {
-    setSelected((prev) =>
-      prev.size === filtered.length ? new Set() : new Set(filtered.map((e) => e.id))
-    );
-  }
+  const activeCount = employees.filter((e) => statusByName.get(e.status)?.is_active_headcount).length;
+  const onLeaveCount = employees.filter((e) => e.status === "On Leave").length;
 
   function refresh() {
-    setSelected(new Set());
     router.refresh();
-  }
-
-  async function handleBulkDeactivate() {
-    if (!canManage) return;
-    const { error } = await supabase
-      .from("employees")
-      .update({ status: "terminated" })
-      .in("id", Array.from(selected));
-    if (error) {
-      alert(error.message);
-      return;
-    }
-    refresh();
   }
 
   function openAdd() {
@@ -177,74 +147,45 @@ export default function EmployeesTable({ initialEmployees, canManage, isAdmin, c
         </div>
       )}
 
-      {canManage && selected.size > 0 ? (
-        <div className="flex items-center gap-4 bg-[var(--color-text-primary)] text-white rounded-lg px-4 py-2.5 mb-4 text-sm">
-          <span className="font-medium">{selected.size} selected</span>
-          <div className="ml-auto flex gap-2">
-            <button
-              onClick={handleBulkDeactivate}
-              className="bg-white/10 hover:bg-white/20 transition-colors duration-150 rounded-md px-3 py-1.5 text-xs"
-              style={{ transitionTimingFunction: "var(--ease-out)" }}
-            >
-              Deactivate
-            </button>
-          </div>
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="flex items-center gap-2 bg-white border border-black/[0.08] rounded-lg px-3 py-2 text-sm text-[var(--color-text-muted)] max-w-[260px] flex-1 min-w-[180px]">
+          <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.3-4.3" />
+          </svg>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search employees..."
+            className="bg-transparent outline-none w-full text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
+          />
         </div>
-      ) : (
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <div className="flex items-center gap-2 bg-white border border-black/[0.08] rounded-lg px-3 py-2 text-sm text-[var(--color-text-muted)] max-w-[260px] flex-1 min-w-[180px]">
-            <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.3-4.3" />
-            </svg>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search employees..."
-              className="bg-transparent outline-none w-full text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
-            />
-          </div>
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`text-xs font-medium px-3.5 py-2 rounded-full transition-colors duration-150 ${
-                filter === f.key
-                  ? "bg-[var(--color-text-primary)] text-white"
-                  : "text-[var(--color-text-muted)] hover:bg-black/[0.04]"
-              }`}
-              style={{ transitionTimingFunction: "var(--ease-out)" }}
-            >
-              {f.label}
-            </button>
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="text-xs font-medium px-3 py-2.5 rounded-lg border border-black/[0.08] bg-white text-[var(--color-text-primary)] outline-none"
+        >
+          <option value="all">All statuses</option>
+          {statuses.map((s) => (
+            <option key={s.id} value={s.name}>{s.name}</option>
           ))}
-        </div>
-      )}
+        </select>
+      </div>
 
       {filtered.length === 0 ? (
         <EmptyState hasAny={employees.length > 0} onAdd={canManage ? openAdd : null} />
       ) : (
         <div className="bg-white rounded-2xl border border-black/[0.06] overflow-hidden">
           <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[720px]">
+          <table className="w-full text-sm min-w-[760px]">
             <thead>
               <tr className="text-left text-[11px] font-semibold tracking-wide uppercase text-[#9089a0] border-b border-black/[0.06]">
-                {canManage && (
-                  <th className="w-8 py-3 pl-4">
-                    <input
-                      type="checkbox"
-                      className="accent-[var(--color-primary)]"
-                      checked={selected.size === filtered.length}
-                      onChange={toggleAll}
-                    />
-                  </th>
-                )}
-                <th className="py-3 px-3">Name</th>
+                <th className="py-3 pl-4 px-3">Name</th>
                 <th className="py-3 px-3">Role</th>
                 <th className="py-3 px-3">Department</th>
                 <th className="py-3 px-3">Status</th>
                 <th className="py-3 px-3">Start date</th>
-                <th className="py-3 px-3 w-16"></th>
+                <th className="py-3 px-3 pr-4 w-16"></th>
               </tr>
             </thead>
             <tbody>
@@ -257,17 +198,7 @@ export default function EmployeesTable({ initialEmployees, canManage, isAdmin, c
                     animation: `rowIn 400ms var(--ease-out) ${i * 0.04}s both`,
                   }}
                 >
-                  {canManage && (
-                    <td className="py-3.5 pl-4">
-                      <input
-                        type="checkbox"
-                        className="accent-[var(--color-primary)]"
-                        checked={selected.has(emp.id)}
-                        onChange={() => toggleRow(emp.id)}
-                      />
-                    </td>
-                  )}
-                  <td className="py-3.5 px-3">
+                  <td className="py-3.5 pl-4 px-3">
                     <div className="flex items-center gap-2.5">
                       <div
                         className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0"
@@ -294,8 +225,8 @@ export default function EmployeesTable({ initialEmployees, canManage, isAdmin, c
                     )}
                   </td>
                   <td className="py-3.5 px-3">
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${STATUS_BADGE[emp.status]}`}>
-                      {STATUS_LABEL[emp.status]}
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${badgeClass(statusByName.get(emp.status))}`}>
+                      {emp.status}
                     </span>
                   </td>
                   <td className="py-3.5 px-3 font-mono text-xs text-[var(--color-text-muted)]">
@@ -307,7 +238,7 @@ export default function EmployeesTable({ initialEmployees, canManage, isAdmin, c
                         })
                       : "—"}
                   </td>
-                  <td className="py-3.5 px-3">
+                  <td className="py-3.5 px-3 pr-4">
                     <div className="flex items-center gap-1.5 justify-end">
                       {canManage && !emp.profile_id && (
                         <button
@@ -326,10 +257,39 @@ export default function EmployeesTable({ initialEmployees, canManage, isAdmin, c
                       )}
                       {canManage && (
                         <button
+                          onClick={() => setStatusDrawerEmployee(emp)}
+                          className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--color-text-muted)] transition-colors duration-150 hover:bg-black/[0.06] hover:text-[var(--color-text-primary)] shrink-0"
+                          style={{ transitionTimingFunction: "var(--ease-out)" }}
+                          aria-label={`Change status for ${emp.first_name}`}
+                          title="Change status"
+                        >
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="9" />
+                            <path d="M12 7v5l3 3" />
+                          </svg>
+                        </button>
+                      )}
+                      {isAdmin && (
+                        <button
+                          onClick={() => setExitDrawerEmployee(emp)}
+                          className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--color-text-muted)] transition-colors duration-150 hover:bg-[#fde8e8] hover:text-[#cc3333] shrink-0"
+                          style={{ transitionTimingFunction: "var(--ease-out)" }}
+                          aria-label={`Record exit for ${emp.first_name}`}
+                          title="Record exit"
+                        >
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                            <path d="M16 17l5-5-5-5M21 12H9" />
+                          </svg>
+                        </button>
+                      )}
+                      {canManage && (
+                        <button
                           onClick={() => openEdit(emp)}
                           className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--color-text-muted)] transition-colors duration-150 hover:bg-black/[0.06] hover:text-[var(--color-text-primary)] shrink-0"
                           style={{ transitionTimingFunction: "var(--ease-out)" }}
                           aria-label={`Edit ${emp.first_name}`}
+                          title="Edit"
                         >
                           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -356,6 +316,23 @@ export default function EmployeesTable({ initialEmployees, canManage, isAdmin, c
         employees={employees}
         isAdmin={isAdmin}
         currentProfileId={currentProfileId}
+      />
+
+      <ChangeStatusDrawer
+        open={!!statusDrawerEmployee}
+        onClose={() => setStatusDrawerEmployee(null)}
+        onSaved={refresh}
+        employee={statusDrawerEmployee}
+        statuses={statuses}
+      />
+
+      <ExitEmployeeDrawer
+        open={!!exitDrawerEmployee}
+        onClose={() => setExitDrawerEmployee(null)}
+        onSaved={refresh}
+        employee={exitDrawerEmployee}
+        statuses={statuses}
+        employees={employees}
       />
 
       <style jsx global>{`

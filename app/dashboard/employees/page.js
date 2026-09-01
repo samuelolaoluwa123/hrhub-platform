@@ -25,11 +25,17 @@ export default async function EmployeesPage() {
     .select("*, profiles!employees_profile_id_fkey(role)")
     .order("created_at", { ascending: false });
 
+  const { data: statuses } = await supabase
+    .from("employee_statuses")
+    .select("*")
+    .order("sort_order");
+
   const canManage = profile?.role === "admin" || profile?.role === "manager";
 
   return (
     <EmployeesTable
       initialEmployees={employees ?? []}
+      statuses={statuses ?? []}
       canManage={canManage}
       isAdmin={profile?.role === "admin"}
       currentProfileId={user.id}
