@@ -18,12 +18,33 @@ export function docTypeLabel(id) {
   return DOC_TYPES.find((t) => t.id === id)?.label ?? id;
 }
 
+const STATUS_CONFIG = {
+  uploaded: { label: "Uploaded", bg: "#eef0f4", fg: "#5b5a6a" },
+  under_review: { label: "Under review", bg: "#fef3e2", fg: "#d68a1f" },
+  verified: { label: "Verified", bg: "#e6f9ee", fg: "#1a9c5f" },
+  rejected: { label: "Rejected", bg: "#fdeaea", fg: "#c0392b" },
+};
+
+function StatusBadge({ status }) {
+  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.uploaded;
+  return (
+    <span
+      className="text-[11px] font-medium px-2.5 py-1 rounded-md whitespace-nowrap"
+      style={{ backgroundColor: cfg.bg, color: cfg.fg }}
+    >
+      {cfg.label}
+    </span>
+  );
+}
+
 function formatDate(value) {
+  if (!value) return "—";
   return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export default function DocumentsPage({
   canManage,
+  isAdmin,
   myDocuments,
   allDocuments,
   employees,
@@ -36,6 +57,8 @@ export default function DocumentsPage({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
   const [downloadError, setDownloadError] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
+  const [updateError, setUpdateError] = useState(null);
 
   async function handleDownload(doc) {
     setDownloadingId(doc.id);
@@ -53,6 +76,31 @@ export default function DocumentsPage({
     }
 
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
+
+  // RLS backs this up (managers are blocked from updating medical_record
+  // rows at all), but the UI shouldn't dangle a button in front of a
+  // manager that would just bounce off the database.
+  async function handleStatusChange(doc, status) {
+    setUpdatingId(doc.id);
+    setUpdateError(null);
+
+    const patch = { status };
+    if (status === "verified" || status === "rejected") {
+      patch.verified_by = profileId;
+      patch.verified_at = new Date().toISOString();
+    }
+
+    const { error } = await supabase.from("employee_documents").update(patch).eq("id", doc.id);
+
+    setUpdatingId(null);
+
+    if (error) {
+      setUpdateError(doc.id);
+      return;
+    }
+
+    router.refresh();
   }
 
   const canUpload = Boolean(employeeId) || canManage;
@@ -93,11 +141,12 @@ export default function DocumentsPage({
         ) : myDocuments.length === 0 ? (
           <EmptyRow text="No documents yet." />
         ) : (
-          <table className="w-full text-sm min-w-[480px]">
+          <table className="w-full text-sm min-w-[560px]">
             <thead>
               <tr className="text-left text-[10.5px] font-semibold tracking-wide uppercase text-[#9089a0]">
                 <th className="py-3.5 px-3.5">Type</th>
                 <th className="py-3.5 px-3.5">Uploaded</th>
+                <th className="py-3.5 px-3.5">Status</th>
                 <th className="py-3.5 px-3.5"></th>
               </tr>
             </thead>
@@ -111,6 +160,15 @@ export default function DocumentsPage({
                   <td className="py-3.5 px-3.5">{docTypeLabel(doc.doc_type)}</td>
                   <td className="py-3.5 px-3.5 font-mono text-xs text-[var(--color-text-muted)]">
                     {formatDate(doc.created_at)}
+                  </td>
+                  <td className="py-3.5 px-3.5">
+                    <StatusBadge status={doc.status} />
+                    {(doc.status === "verified" || doc.status === "rejected") && (
+                      <p className="text-[10.5px] text-[var(--color-text-muted)] mt-1">
+                        {doc.verifier?.full_name ? `by ${doc.verifier.full_name}` : ""}
+                        {doc.verified_at ? ` · ${formatDate(doc.verified_at)}` : ""}
+                      </p>
+                    )}
                   </td>
                   <td className="py-3.5 px-3.5 text-right">
                     <DownloadButton
@@ -131,38 +189,90 @@ export default function DocumentsPage({
           {allDocuments.length === 0 ? (
             <EmptyRow text="No documents have been uploaded yet." />
           ) : (
-            <table className="w-full text-sm min-w-[560px]">
+            <table className="w-full text-sm min-w-[720px]">
               <thead>
                 <tr className="text-left text-[10.5px] font-semibold tracking-wide uppercase text-[#9089a0]">
                   <th className="py-3.5 px-3.5">Employee</th>
                   <th className="py-3.5 px-3.5">Type</th>
                   <th className="py-3.5 px-3.5">Uploaded</th>
+                  <th className="py-3.5 px-3.5">Status</th>
                   <th className="py-3.5 px-3.5"></th>
                 </tr>
               </thead>
               <tbody>
-                {allDocuments.map((doc, i) => (
-                  <tr
-                    key={doc.id}
-                    className="border-t border-black/[0.05] hover:bg-[var(--color-primary)]/[0.03] transition-colors duration-150"
-                    style={{ transitionTimingFunction: "var(--ease-out)", animation: `rowIn 400ms var(--ease-out) ${i * 0.05}s both` }}
-                  >
-                    <td className="py-3.5 px-3.5">
-                      {doc.employees ? `${doc.employees.first_name} ${doc.employees.last_name}` : "—"}
-                    </td>
-                    <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{docTypeLabel(doc.doc_type)}</td>
-                    <td className="py-3.5 px-3.5 font-mono text-xs text-[var(--color-text-muted)]">
-                      {formatDate(doc.created_at)}
-                    </td>
-                    <td className="py-3.5 px-3.5 text-right">
-                      <DownloadButton
-                        onClick={() => handleDownload(doc)}
-                        loading={downloadingId === doc.id}
-                        error={downloadError === doc.id}
-                      />
-                    </td>
-                  </tr>
-                ))}
+                {allDocuments.map((doc, i) => {
+                  // Medical records are hidden from managers at the RLS
+                  // layer (HR/admin only) — mirror that here so a manager
+                  // never sees review controls they'd just get blocked on.
+                  const isMedical = doc.doc_type === "medical_record";
+                  const canReview = isAdmin || !isMedical;
+
+                  return (
+                    <tr
+                      key={doc.id}
+                      className="border-t border-black/[0.05] hover:bg-[var(--color-primary)]/[0.03] transition-colors duration-150"
+                      style={{ transitionTimingFunction: "var(--ease-out)", animation: `rowIn 400ms var(--ease-out) ${i * 0.05}s both` }}
+                    >
+                      <td className="py-3.5 px-3.5">
+                        {doc.employees ? `${doc.employees.first_name} ${doc.employees.last_name}` : "—"}
+                      </td>
+                      <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{docTypeLabel(doc.doc_type)}</td>
+                      <td className="py-3.5 px-3.5 font-mono text-xs text-[var(--color-text-muted)]">
+                        {formatDate(doc.created_at)}
+                      </td>
+                      <td className="py-3.5 px-3.5">
+                        <StatusBadge status={doc.status} />
+                        {(doc.status === "verified" || doc.status === "rejected") && (
+                          <p className="text-[10.5px] text-[var(--color-text-muted)] mt-1">
+                            {doc.verifier?.full_name ? `by ${doc.verifier.full_name}` : ""}
+                            {doc.verified_at ? ` · ${formatDate(doc.verified_at)}` : ""}
+                          </p>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-3.5">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          {canReview ? (
+                            <>
+                              {doc.status !== "under_review" && (
+                                <ReviewButton
+                                  label="Review"
+                                  onClick={() => handleStatusChange(doc, "under_review")}
+                                  loading={updatingId === doc.id}
+                                />
+                              )}
+                              {doc.status !== "verified" && (
+                                <ReviewButton
+                                  label="Verify"
+                                  tone="verified"
+                                  onClick={() => handleStatusChange(doc, "verified")}
+                                  loading={updatingId === doc.id}
+                                />
+                              )}
+                              {doc.status !== "rejected" && (
+                                <ReviewButton
+                                  label="Reject"
+                                  tone="rejected"
+                                  onClick={() => handleStatusChange(doc, "rejected")}
+                                  loading={updatingId === doc.id}
+                                />
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-[10.5px] text-[var(--color-text-muted)]">Admin only</span>
+                          )}
+                          <DownloadButton
+                            onClick={() => handleDownload(doc)}
+                            loading={downloadingId === doc.id}
+                            error={downloadError === doc.id}
+                          />
+                        </div>
+                        {updateError === doc.id && (
+                          <p className="text-[10.5px] text-red-600 text-right mt-1">Couldn't update — try again.</p>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -201,6 +311,25 @@ function DownloadButton({ onClick, loading, error }) {
       style={{ transitionTimingFunction: "var(--ease-out)" }}
     >
       {loading ? "Preparing..." : error ? "Try again" : "Download"}
+    </button>
+  );
+}
+
+const REVIEW_TONE = {
+  default: "bg-[#eef0f4] text-[#5b5a6a] hover:bg-[#dfe1e8]",
+  verified: "bg-[#e6f9ee] text-[#1a9c5f] hover:bg-[#c9f2da]",
+  rejected: "bg-[#fdeaea] text-[#c0392b] hover:bg-[#fad4d4]",
+};
+
+function ReviewButton({ label, tone = "default", onClick, loading }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className={`text-xs font-medium px-2.5 py-1.5 rounded-md transition-colors duration-150 disabled:opacity-50 ${REVIEW_TONE[tone]}`}
+      style={{ transitionTimingFunction: "var(--ease-out)" }}
+    >
+      {label}
     </button>
   );
 }

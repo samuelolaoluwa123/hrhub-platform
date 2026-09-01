@@ -5,24 +5,7 @@ import { useRouter } from "next/navigation";
 import EmployeeDrawer from "./EmployeeDrawer";
 import ChangeStatusDrawer from "./ChangeStatusDrawer";
 import ExitEmployeeDrawer from "./ExitEmployeeDrawer";
-
-const AVATAR_GRADIENTS = [
-  "linear-gradient(135deg,#9b50e9,#8224e3)",
-  "linear-gradient(135deg,#4a9eff,#2f6fd1)",
-  "linear-gradient(135deg,#f5a623,#d68a1f)",
-  "linear-gradient(135deg,#3ee87a,#1a9c5f)",
-  "linear-gradient(135deg,#9089a0,#706f83)",
-];
-
-function gradientFor(name) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
-}
-
-function initials(first, last) {
-  return `${(first || "?")[0]}${(last || "")[0] || ""}`.toUpperCase();
-}
+import EmployeeAvatar from "@/components/dashboard/EmployeeAvatar";
 
 // Badge color is derived from the status's flags, not its name — the
 // list is company-configurable now, so there's no fixed set of names
@@ -200,12 +183,12 @@ export default function EmployeesTable({ initialEmployees, statuses, canManage, 
                 >
                   <td className="py-3.5 pl-4 px-3">
                     <div className="flex items-center gap-2.5">
-                      <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0"
-                        style={{ background: gradientFor(emp.first_name + emp.last_name) }}
-                      >
-                        {initials(emp.first_name, emp.last_name)}
-                      </div>
+                      <EmployeeAvatar
+                        firstName={emp.first_name}
+                        lastName={emp.last_name}
+                        avatarPath={emp.avatar_path}
+                        size={32}
+                      />
                       <div className="min-w-0">
                         <p className="font-medium text-[var(--color-text-primary)] truncate">
                           {emp.first_name} {emp.last_name}

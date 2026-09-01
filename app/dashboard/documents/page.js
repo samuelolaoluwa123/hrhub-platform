@@ -20,6 +20,7 @@ export default async function DocumentsRoute() {
     .single();
 
   const canManage = profile?.role === "admin" || profile?.role === "manager";
+  const isAdmin = profile?.role === "admin";
 
   // Same "self-service eligible" check used on the Leave page — an admin
   // with no employees row can still manage everyone else's documents,
@@ -36,14 +37,18 @@ export default async function DocumentsRoute() {
     employeeId
       ? supabase
           .from("employee_documents")
-          .select("id, doc_type, file_path, created_at")
+          .select(
+            "id, doc_type, file_path, created_at, status, verified_at, verifier:verified_by(full_name)"
+          )
           .eq("employee_id", employeeId)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] }),
     canManage
       ? supabase
           .from("employee_documents")
-          .select("id, doc_type, file_path, created_at, employees(first_name, last_name)")
+          .select(
+            "id, doc_type, file_path, created_at, status, verified_at, employee_id, employees(first_name, last_name), verifier:verified_by(full_name)"
+          )
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] }),
     canManage
@@ -54,6 +59,7 @@ export default async function DocumentsRoute() {
   return (
     <DocumentsPage
       canManage={canManage}
+      isAdmin={isAdmin}
       myDocuments={myDocuments ?? []}
       allDocuments={allDocuments ?? []}
       employees={employees ?? []}

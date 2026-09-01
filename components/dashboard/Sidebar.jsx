@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import EmployeeAvatar from "@/components/dashboard/EmployeeAvatar";
 
 const NAV_ITEMS = [
   {
@@ -111,14 +112,15 @@ const NAV_ITEMS = [
 // shown here).
 const ONBOARDING_ALLOWED_HREFS = ["/dashboard/me", "/dashboard/onboarding", "/dashboard/announcements"];
 
-export default function Sidebar({ fullName, role, onboardingComplete = true }) {
+export default function Sidebar({ fullName, role, onboardingComplete = true, avatarPath }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
   const items = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role)).filter(
     (item) => onboardingComplete || ONBOARDING_ALLOWED_HREFS.includes(item.href)
   );
-  const initial = (fullName || "?").charAt(0).toUpperCase();
+  const [sidebarFirst, ...sidebarRest] = (fullName || "?").split(" ");
+  const sidebarLast = sidebarRest.join(" ");
 
   return (
     <>
@@ -222,12 +224,7 @@ export default function Sidebar({ fullName, role, onboardingComplete = true }) {
 
         <div className="mt-auto pt-3 border-t border-white/[0.08] relative">
           <div className="flex items-center gap-2.5 rounded-[10px] p-2 -mx-2 mt-3 cursor-pointer transition-colors duration-150 hover:bg-white/[0.06]" style={{ transitionTimingFunction: "var(--ease-out)" }}>
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[13px] font-semibold shrink-0"
-              style={{ background: "linear-gradient(135deg, var(--color-accent), var(--color-primary))" }}
-            >
-              {initial}
-            </div>
+            <EmployeeAvatar firstName={sidebarFirst} lastName={sidebarLast} avatarPath={avatarPath} size={32} />
             <div className="min-w-0">
               <p className="text-[13px] text-white font-medium truncate">{fullName}</p>
               <p className="text-[11px] text-[#a99fc0] capitalize">{role}</p>

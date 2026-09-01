@@ -1,9 +1,10 @@
-const STATUS_BADGE = {
-  active: "bg-[#e8f9f0] text-[#1a9c5f]",
-  on_leave: "bg-[#fef3e2] text-[#d68a1f]",
-  terminated: "bg-[#f3f2f5] text-[#706f83]",
-};
-const STATUS_LABEL = { active: "Active", on_leave: "On leave", terminated: "Terminated" };
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import EmployeeAvatar from "@/components/dashboard/EmployeeAvatar";
+
 const EMPLOYMENT_LABEL = { full_time: "Full-time", part_time: "Part-time", contract: "Contract" };
 const ROLE_LABEL = { admin: "Admin", manager: "Manager", employee: "Employee" };
 
@@ -21,9 +22,67 @@ function Field({ label, value }) {
   );
 }
 
+const inputClass = "w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none transition-shadow duration-150";
+const focusRing = (e) => (e.target.style.boxShadow = "0 0 0 2px var(--color-accent)");
+const clearRing = (e) => (e.target.style.boxShadow = "none");
+
 export default function ProfilePage({ profile, employee }) {
+  const router = useRouter();
+  const supabase = createClient();
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [form, setForm] = useState({
+    phone: employee?.phone ?? "",
+    address: employee?.address ?? "",
+    emergency_contact_name: employee?.emergency_contact_name ?? "",
+    emergency_contact_phone: employee?.emergency_contact_phone ?? "",
+    emergency_contact_relationship: employee?.emergency_contact_relationship ?? "",
+  });
+
   const fullName = profile?.full_name || (employee ? `${employee.first_name} ${employee.last_name}` : "—");
-  const initial = (fullName || "?").charAt(0).toUpperCase();
+
+  function openEdit() {
+    setForm({
+      phone: employee?.phone ?? "",
+      address: employee?.address ?? "",
+      emergency_contact_name: employee?.emergency_contact_name ?? "",
+      emergency_contact_phone: employee?.emergency_contact_phone ?? "",
+      emergency_contact_relationship: employee?.emergency_contact_relationship ?? "",
+    });
+    setError(null);
+    setEditing(true);
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+
+    // RLS + a trigger scope this to exactly these columns on the
+    // caller's own row — job title, status, salary, etc. aren't
+    // reachable through this path even if someone tried.
+    const { error: dbError } = await supabase
+      .from("employees")
+      .update({
+        phone: form.phone.trim() || null,
+        address: form.address.trim() || null,
+        emergency_contact_name: form.emergency_contact_name.trim() || null,
+        emergency_contact_phone: form.emergency_contact_phone.trim() || null,
+        emergency_contact_relationship: form.emergency_contact_relationship.trim() || null,
+      })
+      .eq("id", employee.id);
+
+    setSaving(false);
+
+    if (dbError) {
+      setError(dbError.message);
+      return;
+    }
+
+    setEditing(false);
+    router.refresh();
+  }
 
   return (
     <div>
@@ -41,12 +100,12 @@ export default function ProfilePage({ profile, employee }) {
 
       <div className="rounded-2xl bg-white border border-black/[0.06] overflow-hidden">
         <div className="flex items-center gap-4 px-6 py-6 md:px-7 md:py-7 border-b border-black/[0.05]">
-          <div
-            className="w-14 h-14 rounded-full flex items-center justify-center text-white text-xl font-semibold shrink-0"
-            style={{ background: "linear-gradient(135deg, var(--color-accent), var(--color-primary))" }}
-          >
-            {initial}
-          </div>
+          <EmployeeAvatar
+            firstName={employee?.first_name || fullName}
+            lastName={employee?.last_name || ""}
+            avatarPath={employee?.avatar_path}
+            size={56}
+          />
           <div className="min-w-0">
             <p className="font-display text-lg font-semibold text-[var(--color-text-primary)] truncate">{fullName}</p>
             <div className="flex items-center gap-2 mt-1">
@@ -65,28 +124,157 @@ export default function ProfilePage({ profile, employee }) {
             You're not linked to an employee record yet — job details will show here once you are.
           </p>
         ) : (
-          <div className="grid sm:grid-cols-2 gap-x-6 gap-y-5 px-6 py-6 md:px-7 md:py-7">
-            <Field label="Job title" value={employee.job_title} />
-            <Field label="Department" value={employee.department} />
-            <Field label="Employment type" value={EMPLOYMENT_LABEL[employee.employment_type] ?? employee.employment_type} />
-            <Field
-              label="Status"
-              value={
-                <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${STATUS_BADGE[employee.status] ?? ""}`}>
-                  {STATUS_LABEL[employee.status] ?? employee.status}
-                </span>
-              }
-            />
-            <Field label="Start date" value={formatDate(employee.start_date)} />
-            <Field label="Manager" value={employee.manager ? `${employee.manager.first_name} ${employee.manager.last_name}` : "—"} />
-            <Field label="Email" value={employee.email || profile?.email} />
-            <Field label="Phone" value={employee.phone} />
-          </div>
+          <>
+            <div className="px-6 py-6 md:px-7 md:py-7 border-b border-black/[0.05]">
+              <p className="font-mono text-[10.5px] tracking-wide uppercase text-[var(--color-accent)] mb-4">
+                Employment — set by HR
+              </p>
+              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-5">
+                <Field label="Job title" value={employee.job_title} />
+                <Field label="Department" value={employee.department} />
+                <Field label="Employment type" value={EMPLOYMENT_LABEL[employee.employment_type] ?? employee.employment_type} />
+                <Field
+                  label="Status"
+                  value={
+                    <span className="text-xs font-medium px-2.5 py-1 rounded-md bg-[var(--color-violet-tint)] text-[var(--color-primary)]">
+                      {employee.status}
+                    </span>
+                  }
+                />
+                <Field label="Start date" value={formatDate(employee.start_date)} />
+                <Field label="Manager" value={employee.manager ? `${employee.manager.first_name} ${employee.manager.last_name}` : "—"} />
+                <Field label="Email" value={employee.email || profile?.email} />
+              </div>
+            </div>
+
+            <div className="px-6 py-6 md:px-7 md:py-7">
+              <div className="flex items-center justify-between mb-4">
+                <p className="font-mono text-[10.5px] tracking-wide uppercase text-[var(--color-accent)]">
+                  Personal information — you keep this current
+                </p>
+                {!editing && (
+                  <button
+                    onClick={openEdit}
+                    className="text-xs font-medium text-[var(--color-primary)] hover:underline"
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
+
+              {!editing ? (
+                <div className="grid sm:grid-cols-2 gap-x-6 gap-y-5">
+                  <Field label="Phone" value={employee.phone} />
+                  <Field label="Address" value={employee.address} />
+                  <Field label="Emergency contact" value={employee.emergency_contact_name} />
+                  <Field
+                    label="Emergency contact details"
+                    value={
+                      employee.emergency_contact_phone || employee.emergency_contact_relationship
+                        ? `${employee.emergency_contact_phone ?? ""}${
+                            employee.emergency_contact_relationship ? ` · ${employee.emergency_contact_relationship}` : ""
+                          }`
+                        : null
+                    }
+                  />
+                </div>
+              ) : (
+                <form onSubmit={handleSave} className="space-y-4">
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Phone</label>
+                      <input
+                        value={form.phone}
+                        onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                        placeholder="+234..."
+                        className={inputClass}
+                        onFocus={focusRing}
+                        onBlur={clearRing}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Address</label>
+                      <input
+                        value={form.address}
+                        onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                        placeholder="Where you currently live"
+                        className={inputClass}
+                        onFocus={focusRing}
+                        onBlur={clearRing}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">
+                        Emergency contact name
+                      </label>
+                      <input
+                        value={form.emergency_contact_name}
+                        onChange={(e) => setForm((f) => ({ ...f, emergency_contact_name: e.target.value }))}
+                        className={inputClass}
+                        onFocus={focusRing}
+                        onBlur={clearRing}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">
+                        Their phone
+                      </label>
+                      <input
+                        value={form.emergency_contact_phone}
+                        onChange={(e) => setForm((f) => ({ ...f, emergency_contact_phone: e.target.value }))}
+                        placeholder="+234..."
+                        className={inputClass}
+                        onFocus={focusRing}
+                        onBlur={clearRing}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">
+                        Relationship
+                      </label>
+                      <input
+                        value={form.emergency_contact_relationship}
+                        onChange={(e) => setForm((f) => ({ ...f, emergency_contact_relationship: e.target.value }))}
+                        placeholder="e.g. Spouse, Parent"
+                        className={inputClass}
+                        onFocus={focusRing}
+                        onBlur={clearRing}
+                      />
+                    </div>
+                  </div>
+
+                  {error && <p className="text-sm text-red-600">{error}</p>}
+
+                  <div className="flex gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(false)}
+                      className="border border-black/10 rounded-lg px-4 py-2 text-sm font-medium text-[var(--color-text-muted)] hover:bg-black/[0.03] transition-colors duration-150"
+                      style={{ transitionTimingFunction: "var(--ease-out)" }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-transform duration-150 hover:scale-[1.02] active:scale-95 disabled:opacity-60"
+                      style={{ backgroundColor: "var(--color-primary)", transitionTimingFunction: "var(--ease-out)" }}
+                    >
+                      {saving ? "Saving..." : "Save changes"}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </>
         )}
       </div>
 
       <p className="text-xs text-[var(--color-text-muted)] mt-4">
-        Need something changed here? Ask your admin or manager — this page is read-only for now.
+        Job title, department, status, and salary are set by HR — reach out to your admin or manager to update those.
       </p>
     </div>
   );

@@ -76,15 +76,36 @@ export default function UploadDocumentDrawer({
       uploaded_by: profileId,
     });
 
-    setSaving(false);
-
     if (dbError) {
+      setSaving(false);
       // Clean up the orphaned file rather than leaving it unreferenced.
       await supabase.storage.from("employee-documents").remove([path]);
       setError(dbError.message);
       return;
     }
 
+    // 3.3 — a passport photo upload has to actually become the profile
+    // picture, not just sit in the private documents table. The avatar
+    // bucket is public (so it can render without a signed-URL round
+    // trip everywhere), so the file is copied there separately from the
+    // private employee-documents copy rather than reusing one file for
+    // both purposes.
+    if (docType === "passport_photo") {
+      const avatarPath = `${companyId}/${targetEmployeeId}/avatar-${Date.now()}-${safeName}`;
+      const { error: avatarUploadError } = await supabase.storage
+        .from("employee-avatars")
+        .upload(avatarPath, file, { upsert: true });
+
+      if (!avatarUploadError) {
+        await supabase.from("employees").update({ avatar_path: avatarPath }).eq("id", targetEmployeeId);
+      }
+      // If the avatar copy fails, the document itself is still saved
+      // fine — surfacing an error here would be misleading about what
+      // actually went wrong, so this step fails silently and the old
+      // avatar (or initials) just stays in place.
+    }
+
+    setSaving(false);
     setFile(null);
     setDocType(DOC_TYPES[0].id);
     onSaved();
