@@ -12,6 +12,7 @@ const ROLE_ONLY_PREFIXES = [
   { prefix: "/dashboard/payroll/", roles: ["admin"] },
   { prefix: "/dashboard/approvals", roles: ["admin", "manager"] },
   { prefix: "/dashboard/employees", roles: ["admin", "manager"] },
+  { prefix: "/dashboard/audit-log", roles: ["admin"] },
 ];
 
 export async function proxy(request) {

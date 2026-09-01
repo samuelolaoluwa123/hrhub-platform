@@ -13,6 +13,7 @@ export default function SalaryStructureDrawer({ open, onClose, onSaved, employee
       : [{ name: "", amount: "" }]
   );
   const [pensionRate, setPensionRate] = useState(structure?.pension_employee_rate ?? 8);
+  const [changeReason, setChangeReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -45,6 +46,7 @@ export default function SalaryStructureDrawer({ open, onClose, onSaved, employee
         base_salary: Number(baseSalary) || 0,
         allowances,
         pension_employee_rate: Number(pensionRate) || 0,
+        change_reason: changeReason.trim() || null,
         created_by: profileId,
         updated_at: new Date().toISOString(),
       },
@@ -153,6 +155,26 @@ export default function SalaryStructureDrawer({ open, onClose, onSaved, employee
               onBlur={clearRing}
             />
           </div>
+
+          {structure && (
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">
+                Reason for change (optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Promotion, annual review"
+                value={changeReason}
+                onChange={(e) => setChangeReason(e.target.value)}
+                className={inputClass}
+                onFocus={focusRing}
+                onBlur={clearRing}
+              />
+              <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+                Recorded in the audit log alongside this change — not shown to the employee.
+              </p>
+            </div>
+          )}
 
           <div className="rounded-lg bg-[var(--color-violet-tint)] px-4 py-3.5 space-y-1 text-sm">
             <div className="flex justify-between"><span className="text-[var(--color-text-muted)]">Gross pay</span><span className="font-mono">₦{preview.grossPay.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
