@@ -105,11 +105,19 @@ const NAV_ITEMS = [
   },
 ];
 
-export default function Sidebar({ fullName, role }) {
+// Matches proxy.js's ONBOARDING_ALLOWED_PREFIXES — kept in sync manually
+// since one's a route matcher and the other's a nav filter, not because
+// this list enforces anything (proxy.js does that regardless of what's
+// shown here).
+const ONBOARDING_ALLOWED_HREFS = ["/dashboard/me", "/dashboard/onboarding", "/dashboard/announcements"];
+
+export default function Sidebar({ fullName, role, onboardingComplete = true }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  const items = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role));
+  const items = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role)).filter(
+    (item) => onboardingComplete || ONBOARDING_ALLOWED_HREFS.includes(item.href)
+  );
   const initial = (fullName || "?").charAt(0).toUpperCase();
 
   return (

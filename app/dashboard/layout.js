@@ -26,9 +26,22 @@ export default async function DashboardLayout({ children }) {
     .order("created_at", { ascending: false })
     .limit(15);
 
+  // Only fetched for an employee — the nav-hiding here is UX polish
+  // (no dead-end links), proxy.js is the actual authorization gate
+  // regardless of what this returns.
+  let onboardingComplete = true;
+  if (profile?.role === "employee") {
+    const { data: employee } = await supabase
+      .from("employees")
+      .select("onboarding_complete")
+      .eq("profile_id", user.id)
+      .maybeSingle();
+    onboardingComplete = employee?.onboarding_complete ?? true;
+  }
+
   return (
     <div className="md:flex md:h-screen md:overflow-hidden min-h-screen bg-[var(--color-surface)]">
-      <Sidebar fullName={profile?.full_name} role={profile?.role} />
+      <Sidebar fullName={profile?.full_name} role={profile?.role} onboardingComplete={onboardingComplete} />
 
       <div className="flex-1 min-w-0 md:h-screen md:overflow-y-auto">
         <Topbar companyName={profile?.companies?.name} notifications={notifications ?? []} />

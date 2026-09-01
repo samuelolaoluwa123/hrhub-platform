@@ -6,7 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import UploadDocumentDrawer from "./UploadDocumentDrawer";
 
 export const DOC_TYPES = [
+  { id: "passport_photo", label: "Passport photograph" },
   { id: "id_document", label: "ID document" },
+  { id: "medical_record", label: "Medical record" },
   { id: "contract", label: "Employment contract" },
   { id: "certificate", label: "Certificate" },
   { id: "other", label: "Other" },

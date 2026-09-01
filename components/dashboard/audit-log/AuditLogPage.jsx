@@ -6,6 +6,7 @@ const FILTERS = [
   { key: "all", label: "All", actions: null },
   { key: "salary", label: "Salary", actions: ["salary_changed"] },
   { key: "employee_status", label: "Employee status", actions: ["employee_status_changed", "employee_exited"] },
+  { key: "onboarding", label: "Onboarding", actions: ["onboarding_completed"] },
   { key: "leave", label: "Leave", actions: ["leave_status_changed"] },
   { key: "payroll", label: "Payroll", actions: ["payroll_run_created", "payroll_run_status_changed"] },
   { key: "loans", label: "Loans", actions: ["loan_status_changed"] },
@@ -15,6 +16,7 @@ const ACTION_LABEL = {
   salary_changed: "Salary changed",
   employee_status_changed: "Employee status changed",
   employee_exited: "Employee exit recorded",
+  onboarding_completed: "Onboarding completed",
   leave_status_changed: "Leave request",
   payroll_run_created: "Payroll run created",
   payroll_run_status_changed: "Payroll run",
@@ -69,6 +71,8 @@ function describe(entry) {
       return `Status changed from ${old_value?.status ?? "—"} to ${new_value?.status ?? "—"}`;
     case "employee_exited":
       return `Exited as "${new_value?.exit_status ?? "—"}"${new_value?.exit_reason ? ` — ${new_value.exit_reason}` : ""}`;
+    case "onboarding_completed":
+      return "Every required onboarding item verified — documents uploaded, data submitted, nothing self-reported.";
     case "leave_status_changed":
       return `Leave request ${statusLabel(new_value?.status).toLowerCase()} (was ${statusLabel(old_value?.status).toLowerCase()})`;
     case "payroll_run_created": {

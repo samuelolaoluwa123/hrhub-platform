@@ -25,7 +25,9 @@ export default async function OnboardingTemplatesRoute() {
 
   const { data: templates } = await supabase
     .from("onboarding_templates")
-    .select("id, name, is_default, onboarding_tasks(id, title, sort_order)")
+    .select(
+      "id, name, is_default, onboarding_tasks(id, title, sort_order, is_required, verification_type, document_type, field_group)"
+    )
     .order("name");
 
   return <TemplatesPage templates={templates ?? []} companyId={profile?.company_id} />;

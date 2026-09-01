@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { DOC_TYPES } from "./DocumentsPage";
+import { DOC_TYPES, docTypeLabel } from "./DocumentsPage";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB
 
@@ -15,13 +15,30 @@ export default function UploadDocumentDrawer({
   employeeId,
   companyId,
   profileId,
+  // Set when opened from a specific onboarding requirement — skips the
+  // document-type picker (they already know what they're uploading)
+  // instead of making them pick it again from the full, mostly-irrelevant
+  // list.
+  lockedDocType,
 }) {
   const supabase = createClient();
   const [targetEmployeeId, setTargetEmployeeId] = useState(employeeId || employees[0]?.id || "");
-  const [docType, setDocType] = useState(DOC_TYPES[0].id);
+  const [docType, setDocType] = useState(lockedDocType || DOC_TYPES[0].id);
   const [file, setFile] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  // This drawer stays mounted (DocumentsPage renders it unconditionally,
+  // toggling `open`) — reset on every open rather than trusting a
+  // one-time useState initializer, same fix as the Phase 1 drawers.
+  useEffect(() => {
+    if (!open) return;
+    setTargetEmployeeId(employeeId || employees[0]?.id || "");
+    setDocType(lockedDocType || DOC_TYPES[0].id);
+    setFile(null);
+    setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, employeeId, lockedDocType]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -122,20 +139,26 @@ export default function UploadDocumentDrawer({
             <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">
               Document type
             </label>
-            <select
-              value={docType}
-              onChange={(e) => setDocType(e.target.value)}
-              required
-              className={inputClass}
-              onFocus={focusRing}
-              onBlur={clearRing}
-            >
-              {DOC_TYPES.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
+            {lockedDocType ? (
+              <p className="text-sm text-[var(--color-text-primary)] bg-[var(--color-violet-tint)] rounded-lg px-3 py-2">
+                {docTypeLabel(lockedDocType)}
+              </p>
+            ) : (
+              <select
+                value={docType}
+                onChange={(e) => setDocType(e.target.value)}
+                required
+                className={inputClass}
+                onFocus={focusRing}
+                onBlur={clearRing}
+              >
+                {DOC_TYPES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div>
