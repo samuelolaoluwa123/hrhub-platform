@@ -4,10 +4,17 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { sendNotificationEmail } from "@/lib/sendNotificationEmail";
 
-const STATUSES = ["applied", "screening", "interview", "offer", "hired", "rejected", "withdrawn"];
+const STATUSES = ["applied", "screening", "shortlisted", "interview", "selected", "offer", "hired", "rejected", "withdrawn"];
 const STATUS_LABEL = {
-  applied: "Applied", screening: "Screening", interview: "Interview",
-  offer: "Offer", hired: "Hired", rejected: "Rejected", withdrawn: "Withdrawn",
+  applied: "Applied", screening: "Screening", shortlisted: "Shortlisted", interview: "Interview",
+  selected: "Selected", offer: "Offer", hired: "Hired", rejected: "Rejected", withdrawn: "Withdrawn",
+};
+const RECOMMENDATION_LABEL = { strong_hire: "Strong Hire", hire: "Hire", maybe: "Maybe", no_hire: "No Hire" };
+const RECOMMENDATION_BADGE = {
+  strong_hire: "bg-[#e8f9f0] text-[#1a9c5f]",
+  hire: "bg-[#e8f9f0] text-[#1a9c5f]",
+  maybe: "bg-[#fef3e2] text-[#d68a1f]",
+  no_hire: "bg-[#fde8e8] text-[#cc3333]",
 };
 
 function inputClass() {
@@ -16,7 +23,7 @@ function inputClass() {
 function focusRing(e) { e.target.style.boxShadow = "0 0 0 2px var(--color-accent)"; }
 function clearRing(e) { e.target.style.boxShadow = "none"; }
 
-export default function ApplicationDrawer({ open, onClose, onSaved, application: app, companyId, profileId }) {
+export default function ApplicationDrawer({ open, onClose, onSaved, application: app, postingTitle, panelCandidates, companyId, profileId }) {
   const supabase = createClient();
   const candidate = app.candidates;
 
@@ -24,10 +31,16 @@ export default function ApplicationDrawer({ open, onClose, onSaved, application:
   const [score, setScore] = useState(app.score ?? 0);
   const [notes, setNotes] = useState(app.notes ?? "");
   const [savingMain, setSavingMain] = useState(false);
+  const [hiring, setHiring] = useState(false);
+  const [hireStartDate, setHireStartDate] = useState(new Date().toISOString().slice(0, 10));
 
   const [showSchedule, setShowSchedule] = useState(false);
   const [scheduledAt, setScheduledAt] = useState("");
   const [mode, setMode] = useState("video");
+  const [duration, setDuration] = useState(60);
+  const [location, setLocation] = useState("");
+  const [ivNotes, setIvNotes] = useState("");
+  const [panelSelection, setPanelSelection] = useState([]);
   const [savingInterview, setSavingInterview] = useState(false);
 
   const [offeredSalary, setOfferedSalary] = useState(app.offered_salary ?? "");
@@ -42,7 +55,28 @@ export default function ApplicationDrawer({ open, onClose, onSaved, application:
   const [downloadingResume, setDownloadingResume] = useState(false);
   const [error, setError] = useState(null);
 
+  function togglePanelist(id) {
+    setPanelSelection((sel) => (sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id]));
+  }
+
   async function handleSaveMain() {
+    // 4.8 — "Hired" isn't a label change. It runs the hire_candidate()
+    // RPC (admin/manager only, enforced server-side) which atomically
+    // creates the real employee record, assigns onboarding, and links
+    // this application to it for traceability — all in one transaction.
+    if (status === "hired" && app.status !== "hired") {
+      setHiring(true);
+      setError(null);
+      const { error: rpcError } = await supabase.rpc("hire_candidate", {
+        p_application_id: app.id,
+        p_start_date: hireStartDate,
+      });
+      setHiring(false);
+      if (rpcError) { setError(rpcError.message); return; }
+      onSaved();
+      return;
+    }
+
     setSavingMain(true);
     setError(null);
     const { error: dbError } = await supabase
@@ -58,22 +92,75 @@ export default function ApplicationDrawer({ open, onClose, onSaved, application:
     e.preventDefault();
     setSavingInterview(true);
     setError(null);
-    const { error: dbError } = await supabase.from("interviews").insert({
-      company_id: companyId,
-      application_id: app.id,
-      scheduled_at: new Date(scheduledAt).toISOString(),
-      mode,
-      interviewer_id: profileId,
-    });
-    setSavingInterview(false);
-    if (dbError) { setError(dbError.message); return; }
-    setScheduledAt("");
-    setShowSchedule(false);
-    onSaved();
-  }
 
-  async function handleEvaluate(interviewId, rating, feedback) {
-    await supabase.from("interviews").update({ rating, feedback, status: "completed" }).eq("id", interviewId);
+    const { data: interview, error: ivError } = await supabase
+      .from("interviews")
+      .insert({
+        company_id: companyId,
+        application_id: app.id,
+        scheduled_at: new Date(scheduledAt).toISOString(),
+        mode,
+        duration_minutes: Number(duration) || 60,
+        location: location || null,
+        notes: ivNotes || null,
+      })
+      .select("id")
+      .single();
+
+    if (ivError || !interview) {
+      setSavingInterview(false);
+      setError(ivError?.message ?? "Couldn't schedule the interview.");
+      return;
+    }
+
+    if (panelSelection.length) {
+      await supabase.from("interview_panelists").insert(
+        panelSelection.map((pid) => ({
+          company_id: companyId,
+          interview_id: interview.id,
+          profile_id: pid,
+          added_by: profileId,
+        }))
+      );
+
+      // 4.4 — every selected panelist is notified in-app and by email,
+      // with everything they need (candidate, position, when, how
+      // long, where, who else is on the panel) to show up prepared.
+      const whenLabel = new Date(scheduledAt).toLocaleString("en-US", {
+        weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+      });
+      const panelists = panelCandidates.filter((p) => panelSelection.includes(p.id));
+      const allNames = panelists.map((p) => p.full_name);
+      const message = `You've been assigned to an interview panel — ${candidate.first_name} ${candidate.last_name} for ${postingTitle || "an open role"}, ${whenLabel} (${duration} min).`;
+
+      await supabase.from("notifications").insert(
+        panelists.map((p) => ({
+          company_id: companyId,
+          profile_id: p.id,
+          message,
+          link: "/dashboard/interview-panel",
+        }))
+      );
+
+      panelists.forEach((p) => {
+        if (!p.email) return;
+        const others = allNames.filter((n) => n !== p.full_name);
+        sendNotificationEmail({
+          to: p.email,
+          subject: `Interview panel assignment — ${candidate.first_name} ${candidate.last_name}`,
+          message: `${message}\n\nOther panel members: ${others.length ? others.join(", ") : "just you"}.${location ? `\nLocation/link: ${location}` : ""}${ivNotes ? `\nNotes: ${ivNotes}` : ""}`,
+          link: "/dashboard/interview-panel",
+        });
+      });
+    }
+
+    setSavingInterview(false);
+    setScheduledAt("");
+    setLocation("");
+    setIvNotes("");
+    setDuration(60);
+    setPanelSelection([]);
+    setShowSchedule(false);
     onSaved();
   }
 
@@ -91,6 +178,7 @@ export default function ApplicationDrawer({ open, onClose, onSaved, application:
       .eq("id", app.id);
     setSavingOffer(false);
     if (dbError) { setError(dbError.message); return; }
+    setStatus("offer");
     onSaved();
   }
 
@@ -114,6 +202,8 @@ export default function ApplicationDrawer({ open, onClose, onSaved, application:
   }
 
   if (!open) return null;
+
+  const isHiring = status === "hired" && app.status !== "hired";
 
   return (
     <div className="fixed inset-0 z-50">
@@ -149,12 +239,27 @@ export default function ApplicationDrawer({ open, onClose, onSaved, application:
               </select>
             </div>
           </div>
+
+          {isHiring && (
+            <div className="bg-[var(--color-violet-tint)] rounded-lg p-3">
+              <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Start date</label>
+              <input type="date" value={hireStartDate} onChange={(e) => setHireStartDate(e.target.value)} className={`${inputClass()} bg-white`} onFocus={focusRing} onBlur={clearRing} />
+              <p className="text-[10.5px] text-[var(--color-text-muted)] mt-1.5">
+                This creates a real employee record for {candidate.first_name} and assigns onboarding — not just a status change.
+              </p>
+            </div>
+          )}
+
+          {app.status === "hired" && (
+            <p className="text-xs font-medium text-[#1a9c5f]">✓ Hired — employee record created.</p>
+          )}
+
           <div>
             <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Notes</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={inputClass()} onFocus={focusRing} onBlur={clearRing} />
           </div>
-          <button onClick={handleSaveMain} disabled={savingMain} className="text-sm font-medium px-4 py-2 rounded-lg text-white disabled:opacity-60" style={{ backgroundColor: "var(--color-primary)" }}>
-            {savingMain ? "Saving..." : "Save"}
+          <button onClick={handleSaveMain} disabled={savingMain || hiring} className="text-sm font-medium px-4 py-2 rounded-lg text-white disabled:opacity-60" style={{ backgroundColor: "var(--color-primary)" }}>
+            {hiring ? "Creating employee..." : savingMain ? "Saving..." : isHiring ? "Hire & create employee" : "Save"}
           </button>
         </div>
 
@@ -169,14 +274,50 @@ export default function ApplicationDrawer({ open, onClose, onSaved, application:
 
           {showSchedule && (
             <form onSubmit={handleScheduleInterview} className="space-y-2.5 bg-[var(--color-violet-tint)] rounded-lg p-3.5">
-              <input type="datetime-local" required value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} className={inputClass()} onFocus={focusRing} onBlur={clearRing} />
-              <select value={mode} onChange={(e) => setMode(e.target.value)} className={inputClass()} onFocus={focusRing} onBlur={clearRing}>
-                <option value="video">Video</option>
-                <option value="phone">Phone</option>
-                <option value="in_person">In person</option>
-              </select>
+              <input type="datetime-local" required value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} className={`${inputClass()} bg-white`} onFocus={focusRing} onBlur={clearRing} />
+              <div className="grid grid-cols-2 gap-2.5">
+                <select value={mode} onChange={(e) => setMode(e.target.value)} className={`${inputClass()} bg-white`} onFocus={focusRing} onBlur={clearRing}>
+                  <option value="video">Video</option>
+                  <option value="phone">Phone</option>
+                  <option value="in_person">In person</option>
+                </select>
+                <input
+                  type="number" min="15" step="15" required value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  placeholder="Minutes"
+                  className={`${inputClass()} bg-white`} onFocus={focusRing} onBlur={clearRing}
+                />
+              </div>
+              <input
+                type="text" value={location} onChange={(e) => setLocation(e.target.value)}
+                placeholder="Location or meeting link"
+                className={`${inputClass()} bg-white`} onFocus={focusRing} onBlur={clearRing}
+              />
+              <textarea
+                value={ivNotes} onChange={(e) => setIvNotes(e.target.value)}
+                placeholder="Notes for the panel" rows={2}
+                className={`${inputClass()} bg-white`} onFocus={focusRing} onBlur={clearRing}
+              />
+
+              <div>
+                <p className="text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Panel</p>
+                <div className="max-h-36 overflow-y-auto space-y-0.5 bg-white rounded-lg p-2 border border-black/10">
+                  {panelCandidates.length === 0 ? (
+                    <p className="text-xs text-[var(--color-text-muted)] py-1">No one else in the company yet.</p>
+                  ) : (
+                    panelCandidates.map((p) => (
+                      <label key={p.id} className="flex items-center gap-2 text-xs py-1 cursor-pointer">
+                        <input type="checkbox" checked={panelSelection.includes(p.id)} onChange={() => togglePanelist(p.id)} />
+                        <span className="text-[var(--color-text-primary)]">{p.full_name}</span>
+                        <span className="text-[10px] text-[var(--color-text-muted)] capitalize ml-auto">{p.role}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+
               <button type="submit" disabled={savingInterview} className="w-full text-sm font-medium py-2 rounded-lg text-white disabled:opacity-60" style={{ backgroundColor: "var(--color-primary)" }}>
-                {savingInterview ? "Scheduling..." : "Confirm"}
+                {savingInterview ? "Scheduling..." : "Confirm & notify panel"}
               </button>
             </form>
           )}
@@ -186,7 +327,7 @@ export default function ApplicationDrawer({ open, onClose, onSaved, application:
           ) : (
             <div className="space-y-2.5">
               {app.interviews.map((iv) => (
-                <InterviewRow key={iv.id} interview={iv} onEvaluate={handleEvaluate} />
+                <InterviewRow key={iv.id} interview={iv} />
               ))}
             </div>
           )}
@@ -239,49 +380,63 @@ export default function ApplicationDrawer({ open, onClose, onSaved, application:
   );
 }
 
-function InterviewRow({ interview, onEvaluate }) {
-  const [editing, setEditing] = useState(false);
-  const [rating, setRating] = useState(interview.rating ?? 0);
-  const [feedback, setFeedback] = useState(interview.feedback ?? "");
+// 4.6/4.7 — each interview shows its full schedule detail, the panel
+// assigned to it, and every panelist's structured scorecard once
+// submitted. Admin/manager never fill this in on someone else's
+// behalf here — only the real panelist's own logged-in view can
+// (components/dashboard/interview-panel), so what's shown is always
+// genuinely who evaluated, not HR typing on their behalf.
+function InterviewRow({ interview }) {
+  const panelists = interview.interview_panelists ?? [];
+  const evaluations = interview.interview_evaluations ?? [];
 
   return (
-    <div className="rounded-lg border border-black/[0.06] p-3.5">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-[var(--color-text-primary)]">
-            {new Date(interview.scheduled_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-          </p>
-          <p className="text-xs text-[var(--color-text-muted)] capitalize">{interview.mode.replace("_", " ")} &middot; {interview.status}</p>
-        </div>
-        {interview.rating ? (
-          <span className="text-xs font-medium px-2.5 py-1 rounded-md bg-[#e8f9f0] text-[#1a9c5f]">{interview.rating}/5</span>
+    <div className="rounded-lg border border-black/[0.06] p-3.5 space-y-2.5">
+      <div>
+        <p className="text-sm font-medium text-[var(--color-text-primary)]">
+          {new Date(interview.scheduled_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+          <span className="text-[var(--color-text-muted)] font-normal"> · {interview.duration_minutes} min</span>
+        </p>
+        <p className="text-xs text-[var(--color-text-muted)] capitalize mt-0.5">
+          {interview.mode.replace("_", " ")}{interview.location ? ` · ${interview.location}` : ""} · {interview.status}
+        </p>
+        {interview.notes && <p className="text-xs text-[var(--color-text-muted)] mt-1">{interview.notes}</p>}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {panelists.length === 0 ? (
+          <span className="text-[10.5px] text-[var(--color-text-muted)]">No panel assigned</span>
         ) : (
-          <button onClick={() => setEditing((v) => !v)} className="text-xs font-medium text-[var(--color-primary)] hover:underline">
-            {editing ? "Cancel" : "Evaluate"}
-          </button>
+          panelists.map((p) => (
+            <span key={p.id} className="text-[10.5px] font-medium px-2 py-0.5 rounded-md bg-[var(--color-violet-tint)] text-[var(--color-primary)]">
+              {p.panelist?.full_name ?? "—"}
+            </span>
+          ))
         )}
       </div>
 
-      {interview.feedback && !editing && (
-        <p className="text-xs text-[var(--color-text-muted)] mt-2">{interview.feedback}</p>
-      )}
-
-      {editing && (
-        <div className="mt-3 space-y-2">
-          <select value={rating} onChange={(e) => setRating(Number(e.target.value))} className={inputClass()} onFocus={focusRing} onBlur={clearRing}>
-            <option value={0}>Rate...</option>
-            {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}/5</option>)}
-          </select>
-          <textarea placeholder="Feedback" value={feedback} onChange={(e) => setFeedback(e.target.value)} rows={2} className={inputClass()} onFocus={focusRing} onBlur={clearRing} />
-          <button
-            onClick={() => { onEvaluate(interview.id, rating || null, feedback || null); setEditing(false); }}
-            className="text-xs font-medium px-3 py-1.5 rounded-md text-white"
-            style={{ backgroundColor: "var(--color-primary)" }}
-          >
-            Save evaluation
-          </button>
-        </div>
-      )}
+      <div className="space-y-2 pt-1">
+        {evaluations.length === 0 ? (
+          <p className="text-xs text-[var(--color-text-muted)]">No evaluations submitted yet.</p>
+        ) : (
+          evaluations.map((ev) => (
+            <div key={ev.id} className="bg-[var(--color-surface)] rounded-md p-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-medium text-[var(--color-text-primary)]">{ev.evaluator?.full_name ?? "—"}</p>
+                {ev.recommendation && (
+                  <span className={`text-[10.5px] font-medium px-2 py-0.5 rounded-md shrink-0 ${RECOMMENDATION_BADGE[ev.recommendation]}`}>
+                    {RECOMMENDATION_LABEL[ev.recommendation]}
+                  </span>
+                )}
+              </div>
+              <p className="text-[10.5px] text-[var(--color-text-muted)] mt-1">
+                Technical {ev.technical_score ?? "—"} · Communication {ev.communication_score ?? "—"} · Problem solving {ev.problem_solving_score ?? "—"} · Experience {ev.experience_score ?? "—"} · Culture fit {ev.culture_fit_score ?? "—"}
+              </p>
+              {ev.comments && <p className="text-xs text-[var(--color-text-primary)] mt-1.5">{ev.comments}</p>}
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

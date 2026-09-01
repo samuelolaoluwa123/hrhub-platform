@@ -26,6 +26,10 @@ const ONBOARDING_ALLOWED_PREFIXES = [
   "/dashboard/profile",
   "/dashboard/documents",
   "/dashboard/announcements",
+  // 4.5 — an interview panel assignment can land on someone who hasn't
+  // finished their own onboarding yet (a recent hire tapped for a
+  // panel); it shouldn't have to wait on unrelated onboarding tasks.
+  "/dashboard/interview-panel",
 ];
 
 export async function proxy(request) {

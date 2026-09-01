@@ -71,6 +71,21 @@ const NAV_ITEMS = [
     ),
   },
   {
+    // 4.4/4.5 — not role-gated: a panel member can be anyone HR picks
+    // (the CEO/CTO example), not just admin/manager, so this has to be
+    // reachable regardless of role. Shows up empty if you're not on
+    // any panel right now.
+    href: "/dashboard/interview-panel",
+    label: "Interview Panel",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="3" y="4" width="7" height="16" rx="1.5" />
+        <rect x="14" y="4" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="6" rx="1.5" />
+      </svg>
+    ),
+  },
+  {
     href: "/dashboard/announcements",
     label: "Announcements",
     icon: (
@@ -110,7 +125,7 @@ const NAV_ITEMS = [
 // since one's a route matcher and the other's a nav filter, not because
 // this list enforces anything (proxy.js does that regardless of what's
 // shown here).
-const ONBOARDING_ALLOWED_HREFS = ["/dashboard/me", "/dashboard/onboarding", "/dashboard/announcements"];
+const ONBOARDING_ALLOWED_HREFS = ["/dashboard/me", "/dashboard/onboarding", "/dashboard/announcements", "/dashboard/interview-panel"];
 
 export default function Sidebar({ fullName, role, onboardingComplete = true, avatarPath }) {
   const pathname = usePathname();
