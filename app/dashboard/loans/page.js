@@ -29,7 +29,7 @@ export default async function LoansRoute() {
 
   const employeeId = myEmployeeRow?.id ?? null;
 
-  const [{ data: myLoans }, { data: pendingLoans }, { data: allLoans }] = await Promise.all([
+  const [{ data: myLoans }, { data: pendingLoans }, { data: allLoans }, { data: repayments }] = await Promise.all([
     employeeId
       ? supabase
           .from("loans")
@@ -51,7 +51,20 @@ export default async function LoansRoute() {
           .neq("status", "pending")
           .order("requested_at", { ascending: false })
       : Promise.resolve({ data: [] }),
+    // The real "repayment schedule" — one row per payroll run a loan
+    // was actually deducted in. RLS scopes this to the caller's own
+    // loans unless they're admin/manager (who see every loan's
+    // history), same shape as the loans table itself.
+    supabase
+      .from("loan_repayments")
+      .select("id, loan_id, amount, created_at, payroll_runs(period_month, period_year)")
+      .order("created_at", { ascending: false }),
   ]);
+
+  const repaymentsByLoan = {};
+  (repayments ?? []).forEach((r) => {
+    (repaymentsByLoan[r.loan_id] ??= []).push(r);
+  });
 
   return (
     <LoansPage
@@ -61,6 +74,7 @@ export default async function LoansRoute() {
       myLoans={myLoans ?? []}
       pendingLoans={pendingLoans ?? []}
       allLoans={allLoans ?? []}
+      repaymentsByLoan={repaymentsByLoan}
       profileId={user.id}
     />
   );

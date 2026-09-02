@@ -18,10 +18,16 @@ function naira(n) {
   return `₦${Number(n).toLocaleString()}`;
 }
 
-export default function LoansPage({ canManage, employeeId, companyId, myLoans, pendingLoans, allLoans, profileId }) {
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+export default function LoansPage({ canManage, employeeId, companyId, myLoans, pendingLoans, allLoans, repaymentsByLoan, profileId }) {
   const router = useRouter();
   const [requestOpen, setRequestOpen] = useState(false);
   const [reviewing, setReviewing] = useState(null);
+  const [viewingHistory, setViewingHistory] = useState(null);
 
   return (
     <div>
@@ -111,21 +117,30 @@ export default function LoansPage({ canManage, employeeId, companyId, myLoans, p
                 </tr>
               </thead>
               <tbody>
-                {myLoans.map((l, i) => (
-                  <tr key={l.id} className="border-t border-black/[0.05]" style={{ animation: `rowIn 400ms var(--ease-out) ${i * 0.05}s both` }}>
-                    <td className="py-3.5 px-3.5">{TYPE_LABEL[l.loan_type]}</td>
-                    <td className="py-3.5 px-3.5 font-mono text-xs text-[var(--color-text-muted)]">{naira(l.amount)}</td>
-                    <td className="py-3.5 px-3.5 font-mono text-xs text-[var(--color-text-muted)]">
-                      {l.status === "approved" ? naira(l.monthly_deduction) : "—"}
-                    </td>
-                    <td className="py-3.5 px-3.5 font-mono text-xs font-medium text-[var(--color-text-primary)]">
-                      {l.status === "approved" ? naira(Number(l.amount) - Number(l.amount_repaid)) : "—"}
-                    </td>
-                    <td className="py-3.5 px-3.5">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${STATUS_BADGE[l.status]}`}>{STATUS_LABEL[l.status]}</span>
-                    </td>
-                  </tr>
-                ))}
+                {myLoans.map((l, i) => {
+                  const hasHistory = (repaymentsByLoan[l.id]?.length ?? 0) > 0;
+                  return (
+                    <tr
+                      key={l.id}
+                      onClick={() => hasHistory && setViewingHistory(l)}
+                      className={`border-t border-black/[0.05] ${hasHistory ? "cursor-pointer hover:bg-[var(--color-primary)]/[0.03] transition-colors duration-150" : ""}`}
+                      style={{ transitionTimingFunction: "var(--ease-out)", animation: `rowIn 400ms var(--ease-out) ${i * 0.05}s both` }}
+                    >
+                      <td className="py-3.5 px-3.5">{TYPE_LABEL[l.loan_type]}</td>
+                      <td className="py-3.5 px-3.5 font-mono text-xs text-[var(--color-text-muted)]">{naira(l.amount)}</td>
+                      <td className="py-3.5 px-3.5 font-mono text-xs text-[var(--color-text-muted)]">
+                        {l.status === "approved" ? naira(l.monthly_deduction) : "—"}
+                      </td>
+                      <td className="py-3.5 px-3.5 font-mono text-xs font-medium text-[var(--color-text-primary)]">
+                        {l.status === "approved" ? naira(Number(l.amount) - Number(l.amount_repaid)) : "—"}
+                      </td>
+                      <td className="py-3.5 px-3.5">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${STATUS_BADGE[l.status]}`}>{STATUS_LABEL[l.status]}</span>
+                        {hasHistory && <span className="ml-1.5 text-[10.5px] text-[var(--color-primary)]">History →</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -147,18 +162,27 @@ export default function LoansPage({ canManage, employeeId, companyId, myLoans, p
                 </tr>
               </thead>
               <tbody>
-                {allLoans.map((l) => (
-                  <tr key={l.id} className="border-t border-black/[0.05]">
-                    <td className="py-3.5 px-3.5">{l.employees ? `${l.employees.first_name} ${l.employees.last_name}` : "—"}</td>
-                    <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{TYPE_LABEL[l.loan_type]}</td>
-                    <td className="py-3.5 px-3.5 font-mono text-xs text-[var(--color-text-muted)]">
-                      {l.status === "approved" ? naira(Number(l.amount) - Number(l.amount_repaid)) : "—"}
-                    </td>
-                    <td className="py-3.5 px-3.5">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${STATUS_BADGE[l.status]}`}>{STATUS_LABEL[l.status]}</span>
-                    </td>
-                  </tr>
-                ))}
+                {allLoans.map((l) => {
+                  const hasHistory = (repaymentsByLoan[l.id]?.length ?? 0) > 0;
+                  return (
+                    <tr
+                      key={l.id}
+                      onClick={() => hasHistory && setViewingHistory(l)}
+                      className={`border-t border-black/[0.05] ${hasHistory ? "cursor-pointer hover:bg-[var(--color-primary)]/[0.03] transition-colors duration-150" : ""}`}
+                      style={{ transitionTimingFunction: "var(--ease-out)" }}
+                    >
+                      <td className="py-3.5 px-3.5">{l.employees ? `${l.employees.first_name} ${l.employees.last_name}` : "—"}</td>
+                      <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{TYPE_LABEL[l.loan_type]}</td>
+                      <td className="py-3.5 px-3.5 font-mono text-xs text-[var(--color-text-muted)]">
+                        {l.status === "approved" ? naira(Number(l.amount) - Number(l.amount_repaid)) : "—"}
+                      </td>
+                      <td className="py-3.5 px-3.5">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${STATUS_BADGE[l.status]}`}>{STATUS_LABEL[l.status]}</span>
+                        {hasHistory && <span className="ml-1.5 text-[10.5px] text-[var(--color-primary)]">History →</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -182,6 +206,14 @@ export default function LoansPage({ canManage, employeeId, companyId, myLoans, p
           onSaved={() => router.refresh()}
           loan={reviewing}
           profileId={profileId}
+        />
+      )}
+
+      {viewingHistory && (
+        <LoanHistoryDrawer
+          loan={viewingHistory}
+          repayments={repaymentsByLoan[viewingHistory.id] ?? []}
+          onClose={() => setViewingHistory(null)}
         />
       )}
 
@@ -214,4 +246,59 @@ function Section({ eyebrow, title, count, children }) {
 
 function EmptyRow({ text }) {
   return <p className="text-center py-9 text-sm text-[var(--color-text-muted)]">{text}</p>;
+}
+
+// The actual "repayment schedule" — every payroll run this loan was
+// deducted in, and exactly how much, not just a running total. Each
+// row here is what payroll genuinely did, guaranteed to match the
+// loan's outstanding balance by construction (loan_repayments and
+// loans.amount_repaid are always written together, same transaction).
+function LoanHistoryDrawer({ loan, repayments, onClose }) {
+  const totalRepaid = repayments.reduce((sum, r) => sum + Number(r.amount), 0);
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/35 animate-[fadeIn_200ms_var(--ease-out)]" onClick={onClose} />
+      <div className="absolute top-0 right-0 bottom-0 w-full max-w-[360px] bg-white p-7 overflow-y-auto shadow-2xl animate-[slideIn_280ms_var(--ease-out)]">
+        <h2 className="font-display text-lg font-semibold text-[var(--color-text-primary)]">Repayment history</h2>
+        <p className="text-sm text-[var(--color-text-muted)] mt-1 mb-6">
+          {TYPE_LABEL[loan.loan_type]} &middot; {naira(loan.amount)}
+        </p>
+
+        {repayments.length === 0 ? (
+          <p className="text-sm text-[var(--color-text-muted)]">No deductions recorded yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {repayments.map((r) => (
+              <div key={r.id} className="flex items-center justify-between rounded-lg border border-black/[0.06] px-3.5 py-2.5">
+                <span className="text-sm text-[var(--color-text-primary)]">
+                  {r.payroll_runs ? `${MONTH_NAMES[r.payroll_runs.period_month - 1]} ${r.payroll_runs.period_year}` : "—"}
+                </span>
+                <span className="text-sm font-mono font-medium text-[var(--color-text-primary)]">{naira(r.amount)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between mt-5 pt-5 border-t border-black/[0.06]">
+          <span className="text-sm font-medium text-[var(--color-text-primary)]">Total repaid</span>
+          <span className="text-sm font-mono font-semibold text-[var(--color-primary)]">{naira(totalRepaid)}</span>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="w-full mt-6 border border-black/10 rounded-lg py-2.5 text-sm font-medium text-[var(--color-text-muted)] hover:bg-black/[0.03] transition-colors duration-150"
+        >
+          Close
+        </button>
+      </div>
+
+      <style jsx global>{`
+        @keyframes slideIn {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+      `}</style>
+    </div>
+  );
 }

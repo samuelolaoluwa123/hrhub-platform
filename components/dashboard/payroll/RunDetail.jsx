@@ -169,69 +169,108 @@ function AddPayslipDrawer({ employee, run, companyId, onClose, onSaved }) {
       })
     : null;
 
-  // Whatever's left owed on each approved loan/advance, capped at its
-  // monthly installment — this run's automatic deduction.
-  const loanDeduction = activeLoans.reduce(
-    (sum, l) => sum + Math.min(Number(l.monthly_deduction), Number(l.amount) - Number(l.amount_repaid)),
-    0
-  );
-
   const [gross, setGross] = useState(initial ? String(Math.round(initial.grossPay)) : "");
-  const [deductions, setDeductions] = useState(
-    String(Math.round((initial ? initial.totalDeductions : 0) + loanDeduction))
-  );
+  const [otherDeductions, setOtherDeductions] = useState(String(Math.round(initial ? initial.totalDeductions : 0)));
+  // Loan/advance repayment is its own explicit, per-loan, editable
+  // line — not silently folded into one combined deductions number.
+  // Whatever ends up here is exactly what gets recorded against the
+  // loan below, so the two can never diverge (the bug this replaces:
+  // the old single deductions field could be edited freely while the
+  // loan was always marked repaid by the original computed amount
+  // regardless).
+  const [loanRepayments, setLoanRepayments] = useState(() => {
+    const defaults = {};
+    activeLoans.forEach((l) => {
+      const owed = Number(l.amount) - Number(l.amount_repaid);
+      defaults[l.id] = String(Math.round(Math.min(Number(l.monthly_deduction), owed)));
+    });
+    return defaults;
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  const net = Number(gross || 0) - Number(deductions || 0);
+  const totalLoanRepayment = activeLoans.reduce((sum, l) => sum + Number(loanRepayments[l.id] || 0), 0);
+  const deductions = Number(otherDeductions || 0) + totalLoanRepayment;
+  const net = Number(gross || 0) - deductions;
 
   async function handleSubmit(e) {
     e.preventDefault();
     setSaving(true);
     setError(null);
 
-    const { error: dbError } = await supabase.from("payslips").insert({
-      company_id: companyId,
-      payroll_run_id: run.id,
-      employee_id: employee.id,
-      gross_pay: Number(gross),
-      deductions: Number(deductions || 0),
-      net_pay: net,
-      // Keep the calculated breakdown for reference even if the admin
-      // tweaked the final numbers above — null when there was no
-      // salary structure to calculate from at all (fully manual entry).
-      breakdown: initial
-        ? {
-            base_salary: initial.baseSalary,
-            allowances: initial.allowances,
-            pension_monthly: initial.pensionMonthly,
-            tax_monthly: initial.taxMonthly,
-          }
-        : null,
-    });
-
-    setSaving(false);
+    const { data: payslip, error: dbError } = await supabase
+      .from("payslips")
+      .insert({
+        company_id: companyId,
+        payroll_run_id: run.id,
+        employee_id: employee.id,
+        gross_pay: Number(gross),
+        deductions,
+        net_pay: net,
+        // Keep the calculated breakdown for reference even if the admin
+        // tweaked the final numbers above — null when there was no
+        // salary structure to calculate from at all (fully manual entry).
+        breakdown: initial
+          ? {
+              base_salary: initial.baseSalary,
+              allowances: initial.allowances,
+              pension_monthly: initial.pensionMonthly,
+              tax_monthly: initial.taxMonthly,
+            }
+          : null,
+      })
+      .select("id")
+      .single();
 
     if (dbError) {
+      setSaving(false);
       setError(dbError.message);
       return;
     }
 
-    // Apply this run's deduction to each active loan/advance — capped
-    // at what's actually still owed, marking it completed once repaid.
-    await Promise.all(
-      activeLoans.map((l) => {
-        const installment = Math.min(Number(l.monthly_deduction), Number(l.amount) - Number(l.amount_repaid));
-        const newRepaid = Number(l.amount_repaid) + installment;
-        return supabase
-          .from("loans")
-          .update({
-            amount_repaid: newRepaid,
-            status: newRepaid >= Number(l.amount) ? "completed" : "approved",
-          })
-          .eq("id", l.id);
-      })
-    );
+    // Apply exactly what this payslip actually shows as this loan's
+    // repayment — never the pre-computed default — and log it as a
+    // real ledger row tied to this specific run, so the running total
+    // and the run-by-run history can never disagree. Skips any loan
+    // the admin zeroed out for this run (e.g. an agreed skip month).
+    const loansToApply = activeLoans.filter((l) => Number(loanRepayments[l.id] || 0) > 0);
+    const loanError = (
+      await Promise.all(
+        loansToApply.map(async (l) => {
+          const amount = Number(loanRepayments[l.id]);
+          const newRepaid = Number(l.amount_repaid) + amount;
+
+          const { error: ledgerError } = await supabase.from("loan_repayments").insert({
+            company_id: companyId,
+            loan_id: l.id,
+            payroll_run_id: run.id,
+            payslip_id: payslip.id,
+            employee_id: employee.id,
+            amount,
+          });
+          if (ledgerError) return ledgerError;
+
+          const { error: loanUpdateError } = await supabase
+            .from("loans")
+            .update({
+              amount_repaid: newRepaid,
+              status: newRepaid >= Number(l.amount) ? "completed" : "approved",
+            })
+            .eq("id", l.id);
+          return loanUpdateError;
+        })
+      )
+    ).find(Boolean);
+
+    setSaving(false);
+
+    if (loanError) {
+      // The payslip itself already saved successfully — surface this
+      // separately rather than pretending the whole save failed, since
+      // retrying handleSubmit would try to insert a duplicate payslip.
+      setError(`Payslip saved, but a loan repayment didn't record: ${loanError.message}`);
+      return;
+    }
 
     if (employee.profile_id) {
       await supabase.from("notifications").insert({
@@ -270,11 +309,6 @@ function AddPayslipDrawer({ employee, run, companyId, onClose, onSaved }) {
             ? "Pre-filled from their salary structure — pension and estimated tax already factored in. Edit freely before saving."
             : "No salary structure set for them yet — enter figures manually, or set one up first from the Payroll page."}
         </p>
-        {loanDeduction > 0 && (
-          <p className="text-xs text-[var(--color-primary)] mb-1">
-            Includes ₦{Math.round(loanDeduction).toLocaleString()} loan/advance repayment for this run, applied automatically on save.
-          </p>
-        )}
         <div className="mb-6" />
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -290,18 +324,44 @@ function AddPayslipDrawer({ employee, run, companyId, onClose, onSaved }) {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Deductions (₦)</label>
+            <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Other deductions (₦)</label>
             <input
               type="number"
               min="0"
-              value={deductions}
-              onChange={(e) => setDeductions(e.target.value)}
+              value={otherDeductions}
+              onChange={(e) => setOtherDeductions(e.target.value)}
               className={inputClass}
             />
           </div>
 
+          {activeLoans.length > 0 && (
+            <div className="space-y-3 rounded-lg bg-[var(--color-violet-tint)] p-3.5">
+              <p className="text-[10.5px] font-semibold tracking-wide uppercase text-[var(--color-primary)]">
+                Loan/advance repayment — applied to the loan exactly as entered here
+              </p>
+              {activeLoans.map((l) => {
+                const owed = Number(l.amount) - Number(l.amount_repaid);
+                return (
+                  <div key={l.id}>
+                    <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">
+                      {l.loan_type === "advance" ? "Salary advance" : "Staff loan"} — ₦{owed.toLocaleString()} owed
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max={owed}
+                      value={loanRepayments[l.id] ?? ""}
+                      onChange={(e) => setLoanRepayments((prev) => ({ ...prev, [l.id]: e.target.value }))}
+                      className={`${inputClass} bg-white`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <p className="text-sm font-mono text-[var(--color-text-primary)]">
-            Net pay: ₦{net.toLocaleString()}
+            Total deductions: ₦{deductions.toLocaleString()} · Net pay: ₦{net.toLocaleString()}
           </p>
 
           {error && <p className="text-sm text-red-600">{error}</p>}

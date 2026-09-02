@@ -37,11 +37,19 @@ export default async function PayrollRunPage({ params }) {
     redirect("/dashboard/payroll");
   }
 
-  const [{ data: employees }, { data: payslips }, { data: structures }, { data: loans }] = await Promise.all([
+  const [{ data: employees }, { data: payslips }, { data: structures }, { data: loans }, { data: statuses }] = await Promise.all([
+    // Bug: this used to check status = 'active' (lowercase) — a
+    // literal from before Phase 1 made statuses configurable with
+    // real capitalized names ('Active', 'Probation', ...). No
+    // employee has matched that literal since Phase 1 shipped, so
+    // every payroll run's employee list has rendered empty this whole
+    // time (confirmed live: even the already-"Paid" August run with 7
+    // real payslips shows 0 employees on this page). Same
+    // employee_statuses.is_active_headcount fix as the Phase 8
+    // birthday-widget bug.
     supabase
       .from("employees")
-      .select("id, first_name, last_name, email, profile_id")
-      .eq("status", "active")
+      .select("id, first_name, last_name, email, profile_id, status")
       .order("first_name"),
     supabase
       .from("payslips")
@@ -54,7 +62,11 @@ export default async function PayrollRunPage({ params }) {
       .from("loans")
       .select("id, employee_id, amount, amount_repaid, monthly_deduction")
       .eq("status", "approved"),
+    supabase.from("employee_statuses").select("name, is_active_headcount"),
   ]);
+
+  const activeStatusNames = new Set((statuses ?? []).filter((s) => s.is_active_headcount).map((s) => s.name));
+  const activeEmployees = (employees ?? []).filter((e) => activeStatusNames.has(e.status));
 
   const payslipByEmployee = {};
   (payslips ?? []).forEach((p) => {
@@ -71,7 +83,7 @@ export default async function PayrollRunPage({ params }) {
     (loansByEmployee[l.employee_id] ??= []).push(l);
   });
 
-  const employeesWithPayslips = (employees ?? []).map((e) => ({
+  const employeesWithPayslips = activeEmployees.map((e) => ({
     ...e,
     payslip: payslipByEmployee[e.id] ?? null,
     structure: structureByEmployee[e.id] ?? null,
