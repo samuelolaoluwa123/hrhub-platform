@@ -7,6 +7,10 @@ import EmployeeAvatar from "@/components/dashboard/EmployeeAvatar";
 
 const EMPLOYMENT_LABEL = { full_time: "Full-time", part_time: "Part-time", contract: "Contract" };
 const ROLE_LABEL = { admin: "Admin", manager: "Manager", employee: "Employee" };
+const LEVEL_LABEL = {
+  entry: "Entry", junior: "Junior", mid: "Mid", senior: "Senior",
+  lead: "Lead", manager: "Manager", director: "Director", executive: "Executive",
+};
 
 function formatDate(value) {
   if (!value) return "—";
@@ -141,10 +145,28 @@ export default function ProfilePage({ profile, employee }) {
                     </span>
                   }
                 />
+                <Field label="Employment level" value={LEVEL_LABEL[employee.employment_level] ?? "—"} />
                 <Field label="Start date" value={formatDate(employee.start_date)} />
                 <Field label="Manager" value={employee.manager ? `${employee.manager.first_name} ${employee.manager.last_name}` : "—"} />
                 <Field label="Email" value={employee.email || profile?.email} />
               </div>
+
+              {(employee.job_description || employee.responsibilities) && (
+                <div className="grid sm:grid-cols-2 gap-x-6 gap-y-5 mt-5 pt-5 border-t border-black/[0.05]">
+                  {employee.job_description && (
+                    <div className="sm:col-span-2">
+                      <p className="text-[10.5px] font-semibold tracking-wide uppercase text-[#9089a0] mb-1">Job description</p>
+                      <p className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap">{employee.job_description}</p>
+                    </div>
+                  )}
+                  {employee.responsibilities && (
+                    <div className="sm:col-span-2">
+                      <p className="text-[10.5px] font-semibold tracking-wide uppercase text-[#9089a0] mb-1">Responsibilities</p>
+                      <p className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap">{employee.responsibilities}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="px-6 py-6 md:px-7 md:py-7">

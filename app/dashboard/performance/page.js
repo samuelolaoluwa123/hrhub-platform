@@ -23,7 +23,7 @@ export default async function PerformanceRoute() {
 
   const { data: myEmployeeRow } = await supabase
     .from("employees")
-    .select("id")
+    .select("id, job_title")
     .eq("profile_id", user.id)
     .maybeSingle();
 
@@ -36,6 +36,7 @@ export default async function PerformanceRoute() {
     { data: myReviews },
     { data: teamReviews },
     { data: employees },
+    { data: kpiTemplates },
   ] = await Promise.all([
     employeeId
       ? supabase
@@ -68,7 +69,13 @@ export default async function PerformanceRoute() {
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] }),
     canManage
-      ? supabase.from("employees").select("id, first_name, last_name").order("first_name")
+      ? supabase.from("employees").select("id, first_name, last_name, job_title").order("first_name")
+      : Promise.resolve({ data: [] }),
+    canManage
+      ? supabase
+          .from("kpi_templates")
+          .select("id, job_title, cycle_type, kpi_name, target_value, target_unit, weight")
+          .order("job_title")
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -76,6 +83,7 @@ export default async function PerformanceRoute() {
     <PerformancePage
       canManage={canManage}
       employeeId={employeeId}
+      employeeJobTitle={myEmployeeRow?.job_title ?? null}
       companyId={profile?.company_id}
       myGoals={myGoals ?? []}
       teamGoals={teamGoals ?? []}
@@ -83,6 +91,7 @@ export default async function PerformanceRoute() {
       myReviews={myReviews ?? []}
       teamReviews={teamReviews ?? []}
       employees={employees ?? []}
+      kpiTemplates={kpiTemplates ?? []}
       profileId={user.id}
     />
   );

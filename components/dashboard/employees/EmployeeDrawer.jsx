@@ -3,6 +3,17 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+const EMPLOYMENT_LEVELS = [
+  { id: "entry", label: "Entry" },
+  { id: "junior", label: "Junior" },
+  { id: "mid", label: "Mid" },
+  { id: "senior", label: "Senior" },
+  { id: "lead", label: "Lead" },
+  { id: "manager", label: "Manager" },
+  { id: "director", label: "Director" },
+  { id: "executive", label: "Executive" },
+];
+
 const EMPTY_FORM = {
   first_name: "",
   last_name: "",
@@ -11,6 +22,9 @@ const EMPTY_FORM = {
   job_title: "",
   department: "",
   employment_type: "full_time",
+  employment_level: "",
+  job_description: "",
+  responsibilities: "",
   start_date: "",
   manager_id: "",
   birth_date: "",
@@ -45,6 +59,9 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
         job_title: editingEmployee.job_title ?? "",
         department: editingEmployee.department ?? "",
         employment_type: editingEmployee.employment_type ?? "full_time",
+        employment_level: editingEmployee.employment_level ?? "",
+        job_description: editingEmployee.job_description ?? "",
+        responsibilities: editingEmployee.responsibilities ?? "",
         start_date: editingEmployee.start_date ?? "",
         manager_id: editingEmployee.manager_id ?? "",
         birth_date: editingEmployee.birth_date ?? "",
@@ -70,6 +87,11 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
       start_date: form.start_date || null,
       manager_id: form.manager_id || null,
       birth_date: form.birth_date || null,
+      // employment_level has a fixed CHECK list — an empty string
+      // isn't a valid value in it, only NULL or one of the levels.
+      employment_level: form.employment_level || null,
+      job_description: form.job_description.trim() || null,
+      responsibilities: form.responsibilities.trim() || null,
     };
 
     // RLS enforces that only admin/manager can write here. On insert,
@@ -221,17 +243,56 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
                 <option value="contract">Contract</option>
               </select>
             </Field>
-            <Field label="Start date">
-              <input
-                type="date"
-                value={form.start_date}
-                onChange={(e) => update("start_date", e.target.value)}
+            <Field label="Employment level">
+              <select
+                value={form.employment_level}
+                onChange={(e) => update("employment_level", e.target.value)}
                 className={inputClass}
                 onFocus={focusRing}
                 onBlur={clearRing}
-              />
+              >
+                <option value="">Not set</option>
+                {EMPLOYMENT_LEVELS.map((l) => (
+                  <option key={l.id} value={l.id}>{l.label}</option>
+                ))}
+              </select>
             </Field>
           </div>
+
+          <Field label="Start date">
+            <input
+              type="date"
+              value={form.start_date}
+              onChange={(e) => update("start_date", e.target.value)}
+              className={inputClass}
+              onFocus={focusRing}
+              onBlur={clearRing}
+            />
+          </Field>
+
+          <Field label="Job description">
+            <textarea
+              value={form.job_description}
+              onChange={(e) => update("job_description", e.target.value)}
+              rows={3}
+              placeholder="What this role is for, at a glance"
+              className={inputClass}
+              onFocus={focusRing}
+              onBlur={clearRing}
+            />
+          </Field>
+
+          <Field label="Responsibilities">
+            <textarea
+              value={form.responsibilities}
+              onChange={(e) => update("responsibilities", e.target.value)}
+              rows={4}
+              placeholder="One per line works well"
+              className={inputClass}
+              onFocus={focusRing}
+              onBlur={clearRing}
+            />
+          </Field>
 
           <Field label="Birthday">
             <input

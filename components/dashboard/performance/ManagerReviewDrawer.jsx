@@ -1,7 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+
+function formatTarget(kpi) {
+  if (kpi.target_value == null) return "No target set";
+  const val = Number(kpi.target_value).toLocaleString();
+  return kpi.target_unit === "₦" ? `₦${val}` : `${val}${kpi.target_unit ? ` ${kpi.target_unit}` : ""}`;
+}
+
+// Achievement is just a starting-point suggestion for Score, not the
+// score itself — the manager can always override it (a KPI missed
+// for reasons outside the employee's control shouldn't mechanically
+// tank their score just because the math says so).
+function suggestedAchievement(kpi) {
+  if (kpi.target_value == null || kpi.actual_value == null || Number(kpi.target_value) === 0) return null;
+  return Math.round((Number(kpi.actual_value) / Number(kpi.target_value)) * 100);
+}
 
 export default function ManagerReviewDrawer({ open, onClose, onSaved, cycleId, employee, review, companyId }) {
   const supabase = createClient();
@@ -9,6 +24,43 @@ export default function ManagerReviewDrawer({ open, onClose, onSaved, cycleId, e
   const [rating, setRating] = useState(review?.rating ?? 3);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  const [kpis, setKpis] = useState([]);
+  const [kpiScores, setKpiScores] = useState({});
+  const [kpiNotes, setKpiNotes] = useState({});
+  const [loadingKpis, setLoadingKpis] = useState(true);
+
+  useEffect(() => {
+    if (!open) return;
+    setFeedback(review?.manager_feedback ?? "");
+    setRating(review?.rating ?? 3);
+    setError(null);
+    setLoadingKpis(true);
+
+    (async () => {
+      // Covers the case where this employee never opened their own
+      // self-assessment first — the manager can still see and score
+      // the role's KPIs for this cycle. Logged, not surfaced as a
+      // blocking error — the review itself still works with zero KPIs
+      // shown if this fails for some reason.
+      const { error: rpcError } = await supabase.rpc("ensure_employee_kpis", { p_employee_id: employee.id, p_cycle_id: cycleId });
+      if (rpcError) console.error("ensure_employee_kpis failed:", rpcError);
+      const { data } = await supabase
+        .from("employee_kpis")
+        .select("id, kpi_name, target_value, target_unit, weight, actual_value, actual_submitted_at, score, manager_note")
+        .eq("employee_id", employee.id)
+        .eq("cycle_id", cycleId)
+        .order("kpi_name");
+
+      setKpis(data ?? []);
+      const scores = {}, notes = {};
+      (data ?? []).forEach((k) => { scores[k.id] = k.score ?? ""; notes[k.id] = k.manager_note ?? ""; });
+      setKpiScores(scores);
+      setKpiNotes(notes);
+      setLoadingKpis(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, cycleId, employee?.id]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -31,13 +83,23 @@ export default function ManagerReviewDrawer({ open, onClose, onSaved, cycleId, e
           ...payload,
         });
 
-    setSaving(false);
-
     if (dbError) {
+      setSaving(false);
       setError(dbError.message);
       return;
     }
 
+    const kpiUpdates = kpis
+      .filter((k) => kpiScores[k.id] !== "" && kpiScores[k.id] != null)
+      .map((k) =>
+        supabase
+          .from("employee_kpis")
+          .update({ score: Number(kpiScores[k.id]), manager_note: kpiNotes[k.id] || null })
+          .eq("id", k.id)
+      );
+    await Promise.all(kpiUpdates);
+
+    setSaving(false);
     onSaved();
     onClose();
   }
@@ -70,9 +132,49 @@ export default function ManagerReviewDrawer({ open, onClose, onSaved, cycleId, e
           </p>
         )}
 
+        {!loadingKpis && kpis.length > 0 && (
+          <div className="space-y-2.5 mb-6">
+            <p className="text-xs font-semibold tracking-wide uppercase text-[var(--color-accent)]">KPIs this cycle</p>
+            {kpis.map((k) => {
+              const achievement = suggestedAchievement(k);
+              return (
+                <div key={k.id} className="rounded-lg border border-black/[0.06] p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-[var(--color-text-primary)]">{k.kpi_name}</p>
+                    <span className="text-[10.5px] font-mono text-[var(--color-text-muted)] shrink-0">{k.weight}% weight</span>
+                  </div>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                    Target: {formatTarget(k)} &middot; Actual: {k.actual_value != null ? Number(k.actual_value).toLocaleString() : "not submitted"}
+                    {achievement != null && ` · ${achievement}% of target`}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div>
+                      <label className="block text-[10.5px] font-medium text-[var(--color-text-primary)] mb-1">Score</label>
+                      <input
+                        type="number" min="0" value={kpiScores[k.id] ?? ""}
+                        onChange={(e) => setKpiScores((s) => ({ ...s, [k.id]: e.target.value }))}
+                        placeholder={achievement != null ? String(achievement) : "0-100"}
+                        className={inputClass} onFocus={focusRing} onBlur={clearRing}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10.5px] font-medium text-[var(--color-text-primary)] mb-1">Note</label>
+                      <input
+                        type="text" value={kpiNotes[k.id] ?? ""}
+                        onChange={(e) => setKpiNotes((n) => ({ ...n, [k.id]: e.target.value }))}
+                        className={inputClass} onFocus={focusRing} onBlur={clearRing}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Rating</label>
+            <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Overall rating</label>
             <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map((n) => (
                 <button

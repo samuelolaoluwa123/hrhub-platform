@@ -4,7 +4,9 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const CYCLE_TYPES = [
+  { id: "monthly", label: "Monthly" },
   { id: "quarterly", label: "Quarterly" },
+  { id: "half_yearly", label: "Half-yearly" },
   { id: "annual", label: "Annual" },
   { id: "probation", label: "Probation" },
   { id: "custom", label: "Custom" },
