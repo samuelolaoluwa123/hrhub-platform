@@ -22,7 +22,7 @@ export default async function DashboardLayout({ children }) {
 
   const { data: notifications } = await supabase
     .from("notifications")
-    .select("id, message, link, is_read, created_at")
+    .select("id, message, link, type, is_read, created_at")
     .order("created_at", { ascending: false })
     .limit(15);
 

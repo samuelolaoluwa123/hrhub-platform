@@ -237,6 +237,7 @@ function AddPayslipDrawer({ employee, run, companyId, onClose, onSaved }) {
       await supabase.from("notifications").insert({
         company_id: companyId,
         profile_id: employee.profile_id,
+        type: "payroll",
         message: `Your payslip for ${MONTH_NAMES[run.period_month - 1]} ${run.period_year} is ready.`,
         link: "/dashboard/payroll",
       });

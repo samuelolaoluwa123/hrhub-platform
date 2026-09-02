@@ -5,19 +5,28 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import AnnouncementDrawer from "./AnnouncementDrawer";
 
-const CATEGORY_LABEL = { general: "General", hr: "HR", event: "Event", urgent: "Urgent" };
+const CATEGORY_LABEL = { general: "General", hr: "HR", event: "Event", urgent: "Urgent", birthday: "🎉 Birthday" };
 const CATEGORY_BADGE = {
   general: "bg-[var(--color-violet-tint)] text-[var(--color-primary)]",
   hr: "bg-[#eaf2fd] text-[#2f6fd1]",
   event: "bg-[#e8f9f0] text-[#1a9c5f]",
   urgent: "bg-[#fde8e8] text-[#cc3333]",
+  birthday: "bg-[#fef3e2] text-[#d68a1f]",
 };
+
+function audienceLabel(a) {
+  if (a.audience_type === "company") return null;
+  if (a.audience_type === "department") return `Dept: ${a.audience_value}`;
+  if (a.audience_type === "team") return `Team: ${a.audience_value}`;
+  if (a.audience_type === "individual") return "Just for you";
+  return null;
+}
 
 function formatDate(value) {
   return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export default function AnnouncementsPage({ canManage, announcements, companyId, profileId }) {
+export default function AnnouncementsPage({ canManage, announcements, employees, companyId, profileId }) {
   const router = useRouter();
   const supabase = createClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -82,6 +91,11 @@ export default function AnnouncementsPage({ canManage, announcements, companyId,
                   <span className={`text-[10.5px] font-medium px-2.5 py-1 rounded-full ${CATEGORY_BADGE[a.category]}`}>
                     {CATEGORY_LABEL[a.category] ?? a.category}
                   </span>
+                  {audienceLabel(a) && (
+                    <span className="text-[10.5px] font-medium px-2.5 py-1 rounded-full bg-[#f3f2f5] text-[#706f83]">
+                      {audienceLabel(a)}
+                    </span>
+                  )}
                 </div>
                 {canManage && (
                   <button
@@ -119,6 +133,7 @@ export default function AnnouncementsPage({ canManage, announcements, companyId,
           onSaved={() => router.refresh()}
           companyId={companyId}
           profileId={profileId}
+          employees={employees}
         />
       )}
 

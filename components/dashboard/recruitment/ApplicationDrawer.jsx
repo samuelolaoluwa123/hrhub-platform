@@ -137,6 +137,7 @@ export default function ApplicationDrawer({ open, onClose, onSaved, application:
         panelists.map((p) => ({
           company_id: companyId,
           profile_id: p.id,
+          type: "interview",
           message,
           link: "/dashboard/interview-panel",
         }))

@@ -5,6 +5,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+// 8.2 — a real notification center distinguishes what kind of thing
+// each entry is, not just a flat list of sentences.
+const TYPE_ICON = {
+  announcement: "📣",
+  interview: "🗓️",
+  leave: "🌴",
+  onboarding: "✅",
+  birthday: "🎉",
+  kpi: "📊",
+  payroll: "₦",
+  general: "🔔",
+};
+
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -111,6 +124,7 @@ export default function NotificationsBell({ initialNotifications }) {
                   {!n.is_read && (
                     <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] mt-1.5 shrink-0" />
                   )}
+                  <span className="text-sm shrink-0" aria-hidden="true">{TYPE_ICON[n.type] ?? TYPE_ICON.general}</span>
                   <div className={n.is_read ? "pl-4" : ""}>
                     <p className="text-sm text-[var(--color-text-primary)]">{n.message}</p>
                     <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{timeAgo(n.created_at)}</p>

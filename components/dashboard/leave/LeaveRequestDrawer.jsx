@@ -82,6 +82,7 @@ export default function LeaveRequestDrawer({ open, onClose, onSaved, leaveTypes,
         approvers.map((a) => ({
           company_id: companyId,
           profile_id: a.id,
+          type: "leave",
           message: "A new leave request needs your review.",
           link: "/dashboard/leave",
         }))

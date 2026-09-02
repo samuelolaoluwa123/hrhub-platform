@@ -21,6 +21,7 @@ const EMPTY_FORM = {
   phone: "",
   job_title: "",
   department: "",
+  team: "",
   employment_type: "full_time",
   employment_level: "",
   job_description: "",
@@ -58,6 +59,7 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
         phone: editingEmployee.phone ?? "",
         job_title: editingEmployee.job_title ?? "",
         department: editingEmployee.department ?? "",
+        team: editingEmployee.team ?? "",
         employment_type: editingEmployee.employment_type ?? "full_time",
         employment_level: editingEmployee.employment_level ?? "",
         job_description: editingEmployee.job_description ?? "",
@@ -228,6 +230,17 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
               />
             </Field>
           </div>
+
+          <Field label="Team">
+            <input
+              value={form.team}
+              onChange={(e) => update("team", e.target.value)}
+              placeholder="e.g. Design Systems (optional, narrower than department)"
+              className={inputClass}
+              onFocus={focusRing}
+              onBlur={clearRing}
+            />
+          </Field>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Employment type">

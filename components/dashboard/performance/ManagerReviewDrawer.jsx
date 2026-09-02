@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { sendNotificationEmail } from "@/lib/sendNotificationEmail";
 
 function formatTarget(kpi) {
   if (kpi.target_value == null) return "No target set";
@@ -98,6 +99,27 @@ export default function ManagerReviewDrawer({ open, onClose, onSaved, cycleId, e
           .eq("id", k.id)
       );
     await Promise.all(kpiUpdates);
+
+    // 8.2 "KPI review" notification — the moment a review actually
+    // completes, not when it opens (the employee already knows about
+    // their own KPIs from the self-assessment step).
+    if (employee.profile_id) {
+      await supabase.from("notifications").insert({
+        company_id: companyId,
+        profile_id: employee.profile_id,
+        type: "kpi",
+        message: "Your performance review is complete — your manager left feedback and a rating.",
+        link: "/dashboard/performance",
+      });
+    }
+    if (employee.email) {
+      sendNotificationEmail({
+        to: employee.email,
+        subject: "Your performance review is complete",
+        message: "Your manager has completed your performance review, including feedback and a rating.",
+        link: "/dashboard/performance",
+      });
+    }
 
     setSaving(false);
     onSaved();

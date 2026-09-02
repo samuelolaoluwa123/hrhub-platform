@@ -58,6 +58,7 @@ export default function LeaveReviewDrawer({ open, onClose, onSaved, request, pro
       await supabase.from("notifications").insert({
         company_id: request.employees.company_id,
         profile_id: request.employees.profile_id,
+        type: "leave",
         message: `Your leave request was ${status}.${comment ? ` "${comment}"` : ""}`,
         link: "/dashboard/leave",
       });

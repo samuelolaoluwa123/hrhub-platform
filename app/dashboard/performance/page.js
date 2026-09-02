@@ -69,7 +69,7 @@ export default async function PerformanceRoute() {
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] }),
     canManage
-      ? supabase.from("employees").select("id, first_name, last_name, job_title").order("first_name")
+      ? supabase.from("employees").select("id, first_name, last_name, job_title, profile_id, email").order("first_name")
       : Promise.resolve({ data: [] }),
     canManage
       ? supabase

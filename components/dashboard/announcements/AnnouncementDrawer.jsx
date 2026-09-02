@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { sendNotificationEmail } from "@/lib/sendNotificationEmail";
 
 const CATEGORIES = [
   { id: "general", label: "General" },
@@ -10,15 +11,45 @@ const CATEGORIES = [
   { id: "urgent", label: "Urgent" },
 ];
 
-export default function AnnouncementDrawer({ open, onClose, onSaved, companyId, profileId }) {
+const AUDIENCE_OPTIONS = [
+  { id: "company", label: "Company-wide" },
+  { id: "department", label: "Department" },
+  { id: "team", label: "Team" },
+  { id: "individual", label: "Individual" },
+];
+
+// 8.1 — HR picks exactly who this reaches. 8.2 — posting one also
+// notifies whoever it reaches, so it shows up in their notification
+// center, not just on the Announcements page if they happen to visit.
+export default function AnnouncementDrawer({ open, onClose, onSaved, companyId, profileId, employees }) {
   const supabase = createClient();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [category, setCategory] = useState("general");
   const [eventDate, setEventDate] = useState("");
   const [pinned, setPinned] = useState(false);
+  const [audienceType, setAudienceType] = useState("company");
+  const [audienceValue, setAudienceValue] = useState("");
+  const [audienceEmployeeId, setAudienceEmployeeId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  const departments = useMemo(
+    () => Array.from(new Set(employees.map((e) => e.department).filter(Boolean))).sort(),
+    [employees]
+  );
+  const teams = useMemo(
+    () => Array.from(new Set(employees.map((e) => e.team).filter(Boolean))).sort(),
+    [employees]
+  );
+
+  const targetEmployees = useMemo(() => {
+    if (audienceType === "company") return employees;
+    if (audienceType === "department") return employees.filter((e) => e.department === audienceValue);
+    if (audienceType === "team") return employees.filter((e) => e.team === audienceValue);
+    if (audienceType === "individual") return employees.filter((e) => e.id === audienceEmployeeId);
+    return [];
+  }, [audienceType, audienceValue, audienceEmployeeId, employees]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -33,20 +64,47 @@ export default function AnnouncementDrawer({ open, onClose, onSaved, companyId, 
       category,
       event_date: category === "event" && eventDate ? eventDate : null,
       pinned,
+      audience_type: audienceType,
+      audience_value: audienceType === "department" || audienceType === "team" ? audienceValue : null,
+      audience_employee_id: audienceType === "individual" ? audienceEmployeeId : null,
     });
 
-    setSaving(false);
-
     if (dbError) {
+      setSaving(false);
       setError(dbError.message);
       return;
     }
 
+    // In-app notification only reaches someone with a login; email
+    // goes out to everyone targeted regardless, since that's the only
+    // channel at all for someone who's never gotten portal access yet
+    // — same split this app already uses for leave-request outcomes.
+    const withPortalAccess = targetEmployees.filter((e) => e.profile_id);
+    if (withPortalAccess.length) {
+      await supabase.from("notifications").insert(
+        withPortalAccess.map((e) => ({
+          company_id: companyId,
+          profile_id: e.profile_id,
+          type: "announcement",
+          message: `New announcement: ${title}`,
+          link: "/dashboard/announcements",
+        }))
+      );
+    }
+    targetEmployees.forEach((e) => {
+      if (!e.email) return;
+      sendNotificationEmail({ to: e.email, subject: `New announcement: ${title}`, message: body, link: "/dashboard/announcements" });
+    });
+
+    setSaving(false);
     setTitle("");
     setBody("");
     setCategory("general");
     setEventDate("");
     setPinned(false);
+    setAudienceType("company");
+    setAudienceValue("");
+    setAudienceEmployeeId("");
     onSaved();
     onClose();
   }
@@ -62,9 +120,53 @@ export default function AnnouncementDrawer({ open, onClose, onSaved, companyId, 
       <div className="absolute inset-0 bg-black/35 animate-[fadeIn_200ms_var(--ease-out)]" onClick={onClose} />
       <div className="absolute top-0 right-0 bottom-0 w-full max-w-[420px] bg-white p-7 overflow-y-auto shadow-2xl animate-[slideIn_280ms_var(--ease-out)]">
         <h2 className="font-display text-lg font-semibold text-[var(--color-text-primary)]">New announcement</h2>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1 mb-6">Visible to everyone in the company immediately.</p>
+        <p className="text-sm text-[var(--color-text-muted)] mt-1 mb-6">Reaches whoever you target, immediately.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Audience</label>
+            <div className="grid grid-cols-2 gap-2 mb-2.5">
+              {AUDIENCE_OPTIONS.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => { setAudienceType(a.id); setAudienceValue(""); setAudienceEmployeeId(""); }}
+                  className={`text-xs font-medium py-2 rounded-lg border transition-colors duration-150 ${
+                    audienceType === a.id
+                      ? "text-white border-transparent"
+                      : "text-[var(--color-text-primary)] border-black/10 hover:bg-black/[0.03]"
+                  }`}
+                  style={audienceType === a.id ? { backgroundColor: "var(--color-primary)" } : undefined}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </div>
+
+            {audienceType === "department" && (
+              <select value={audienceValue} onChange={(e) => setAudienceValue(e.target.value)} required className={inputClass} onFocus={focusRing} onBlur={clearRing}>
+                <option value="">Choose a department...</option>
+                {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            )}
+            {audienceType === "team" && (
+              <select value={audienceValue} onChange={(e) => setAudienceValue(e.target.value)} required className={inputClass} onFocus={focusRing} onBlur={clearRing}>
+                <option value="">Choose a team...</option>
+                {teams.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            )}
+            {audienceType === "individual" && (
+              <select value={audienceEmployeeId} onChange={(e) => setAudienceEmployeeId(e.target.value)} required className={inputClass} onFocus={focusRing} onBlur={clearRing}>
+                <option value="">Choose an employee...</option>
+                {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.first_name} {emp.last_name}</option>)}
+              </select>
+            )}
+
+            <p className="text-[10.5px] text-[var(--color-text-muted)] mt-1.5">
+              {targetEmployees.length} {targetEmployees.length === 1 ? "person" : "people"} will see this.
+            </p>
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Title</label>
             <input

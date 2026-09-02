@@ -102,5 +102,26 @@ async function handleInvite(request) {
     return NextResponse.json({ error: linkError.message }, { status: 500 });
   }
 
+  // 8.2 "Onboarding reminder" — the moment they can actually see and
+  // act on it is when they get portal access, not when the checklist
+  // was silently assigned back at creation time. Only fires if there's
+  // real incomplete work waiting (never for an employee whose
+  // checklist is already done, or who has none assigned).
+  const { count: incompleteCount } = await admin
+    .from("employee_onboarding")
+    .select("id", { count: "exact", head: true })
+    .eq("employee_id", employeeId)
+    .eq("is_complete", false);
+
+  if (incompleteCount > 0) {
+    await admin.from("notifications").insert({
+      company_id: employee.company_id,
+      profile_id: newUserId,
+      type: "onboarding",
+      message: "Welcome! You have onboarding tasks to complete.",
+      link: "/dashboard/onboarding",
+    });
+  }
+
   return NextResponse.json({ success: true });
 }

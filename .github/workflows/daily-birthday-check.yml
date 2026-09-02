@@ -1,0 +1,27 @@
+name: Daily birthday check
+
+# 8.3 — automated birthday recognition. Runs once a day and calls
+# process_daily_birthdays(), which posts a company-wide "🎉 Happy
+# Birthday" announcement plus a personal notification for anyone whose
+# birthday is today. The function is idempotent (checks for an
+# existing celebration post before creating another), so a retried or
+# re-triggered run never double-posts.
+
+on:
+  schedule:
+    # 06:00 UTC = 07:00 WAT — early enough that the announcement is up
+    # before most of the company logs in for the day.
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  celebrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Process today's birthdays
+        run: |
+          curl -sf -X POST "https://gcmsnibvomqmnqcavocn.supabase.co/rest/v1/rpc/process_daily_birthdays" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -o /dev/null
