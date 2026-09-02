@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { sendNotificationEmail } from "@/lib/sendNotificationEmail";
 import LeaveRequestDrawer from "./LeaveRequestDrawer";
 import LeaveTypeDrawer from "./LeaveTypeDrawer";
 import AllocateBalanceDrawer from "./AllocateBalanceDrawer";
+import LeaveReviewDrawer from "./LeaveReviewDrawer";
 
 const STATUS_BADGE = {
   pending: "bg-[#fef3e2] text-[#d68a1f]",
@@ -37,57 +36,22 @@ export default function LeavePage({
   pendingRequests,
   myRequests,
   leaveTypes,
+  activeLeaveTypes,
   employeeId,
+  profileId,
   companyId,
   myBalances,
   teamBalances,
   employees,
   currentYear,
+  pendingByEmployeeAndType,
 }) {
   const router = useRouter();
-  const supabase = createClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [actingOn, setActingOn] = useState(null);
   const [typeDrawerOpen, setTypeDrawerOpen] = useState(false);
+  const [editingType, setEditingType] = useState(null);
   const [balanceDrawerOpen, setBalanceDrawerOpen] = useState(false);
-
-  async function handleReview(requestId, status) {
-    setActingOn(requestId);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const request = pendingRequests.find((r) => r.id === requestId);
-
-    await supabase
-      .from("leave_requests")
-      .update({ status, reviewed_by: user?.id, reviewed_at: new Date().toISOString() })
-      .eq("id", requestId);
-
-    // In-app notification only works if they have a login; email goes
-    // to their stored address either way, since that's their only
-    // channel if they've never logged in.
-    if (request?.employees?.profile_id) {
-      await supabase.from("notifications").insert({
-        company_id: request.employees.company_id,
-        profile_id: request.employees.profile_id,
-        message: `Your leave request was ${status}.`,
-        link: "/dashboard/leave",
-      });
-    }
-
-    if (request?.employees?.email) {
-      sendNotificationEmail({
-        to: request.employees.email,
-        subject: `Your leave request was ${status}`,
-        message: `Your leave request has been ${status} by your admin or manager.`,
-        link: "/dashboard/leave",
-      });
-    }
-
-    setActingOn(null);
-    router.refresh();
-  }
+  const [reviewing, setReviewing] = useState(null);
 
   return (
     <div>
@@ -123,18 +87,19 @@ export default function LeavePage({
           {myBalances.length === 0 ? (
             <EmptyRow text="No balance set yet — ask your admin to allocate one." />
           ) : (
-            <div className="grid sm:grid-cols-3 gap-3 p-4">
+            <div className="grid sm:grid-cols-2 gap-3 p-4">
               {myBalances.map((b) => {
-                const remaining = Number(b.days_allocated) - Number(b.days_used);
+                const pending = pendingByEmployeeAndType[`${employeeId}:${b.leave_type_id}`] ?? 0;
+                const remaining = Number(b.days_allocated) - Number(b.days_used) - pending;
                 return (
                   <div key={b.id} className="rounded-xl border border-black/[0.06] px-4 py-3.5">
-                    <p className="text-xs text-[var(--color-text-muted)] mb-1">{b.leave_types?.name}</p>
-                    <p className="text-lg font-semibold text-[var(--color-text-primary)]">
-                      {remaining} <span className="text-xs font-normal text-[var(--color-text-muted)]">days left</span>
-                    </p>
-                    <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-                      {b.days_used} used of {b.days_allocated}
-                    </p>
+                    <p className="text-sm font-medium text-[var(--color-text-primary)] mb-2.5">{b.leave_types?.name}</p>
+                    <div className="grid grid-cols-4 gap-2 text-center">
+                      <Stat label="Entitlement" value={b.days_allocated} />
+                      <Stat label="Used" value={b.days_used} />
+                      <Stat label="Pending" value={pending} />
+                      <Stat label="Remaining" value={remaining} highlight />
+                    </div>
                   </div>
                 );
               })}
@@ -167,7 +132,8 @@ export default function LeavePage({
                 {pendingRequests.map((req, i) => (
                   <tr
                     key={req.id}
-                    className="border-t border-black/[0.05] hover:bg-[var(--color-primary)]/[0.03] transition-colors duration-150"
+                    onClick={() => setReviewing(req)}
+                    className="border-t border-black/[0.05] hover:bg-[var(--color-primary)]/[0.03] transition-colors duration-150 cursor-pointer"
                     style={{ transitionTimingFunction: "var(--ease-out)", animation: `rowIn 400ms var(--ease-out) ${i * 0.05}s both` }}
                   >
                     <td className="py-3.5 px-3.5">
@@ -187,27 +153,8 @@ export default function LeavePage({
                       {formatRange(req.start_date, req.end_date)}
                     </td>
                     <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{req.days_requested}</td>
-                    <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{req.reason || "—"}</td>
-                    <td className="py-3.5 px-3.5">
-                      <div className="flex gap-1.5 justify-end">
-                        <button
-                          disabled={actingOn === req.id}
-                          onClick={() => handleReview(req.id, "approved")}
-                          className="text-xs font-medium px-3 py-1.5 rounded-md bg-[#e8f9f0] text-[#1a9c5f] hover:bg-[#1a9c5f] hover:text-white transition-colors duration-150 disabled:opacity-50"
-                          style={{ transitionTimingFunction: "var(--ease-out)" }}
-                        >
-                          Approve
-                        </button>
-                        <button
-                          disabled={actingOn === req.id}
-                          onClick={() => handleReview(req.id, "rejected")}
-                          className="text-xs font-medium px-3 py-1.5 rounded-md bg-[#fde8e8] text-[#cc3333] hover:bg-[#cc3333] hover:text-white transition-colors duration-150 disabled:opacity-50"
-                          style={{ transitionTimingFunction: "var(--ease-out)" }}
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </td>
+                    <td className="py-3.5 px-3.5 text-[var(--color-text-muted)] truncate max-w-[160px]">{req.reason || "—"}</td>
+                    <td className="py-3.5 px-3.5 text-right text-[#9089a0]">→</td>
                   </tr>
                 ))}
               </tbody>
@@ -222,14 +169,14 @@ export default function LeavePage({
         ) : myRequests.length === 0 ? (
           <EmptyRow text="You haven't requested any leave yet." />
         ) : (
-          <table className="w-full text-sm min-w-[560px]">
+          <table className="w-full text-sm min-w-[620px]">
             <thead>
               <tr className="text-left text-[10.5px] font-semibold tracking-wide uppercase text-[#9089a0]">
                 <th className="py-3.5 px-3.5">Type</th>
                 <th className="py-3.5 px-3.5">Dates</th>
                 <th className="py-3.5 px-3.5">Days</th>
-                <th className="py-3.5 px-3.5">Reason</th>
                 <th className="py-3.5 px-3.5">Status</th>
+                <th className="py-3.5 px-3.5">Comment</th>
               </tr>
             </thead>
             <tbody>
@@ -244,12 +191,12 @@ export default function LeavePage({
                     {formatRange(req.start_date, req.end_date)}
                   </td>
                   <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{req.days_requested}</td>
-                  <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{req.reason || "—"}</td>
                   <td className="py-3.5 px-3.5">
                     <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${STATUS_BADGE[req.status]}`}>
                       {STATUS_LABEL[req.status]}
                     </span>
                   </td>
+                  <td className="py-3.5 px-3.5 text-[var(--color-text-muted)] truncate max-w-[200px]">{req.decision_comment || "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -263,7 +210,7 @@ export default function LeavePage({
           title="Leave types"
           action={
             <button
-              onClick={() => setTypeDrawerOpen(true)}
+              onClick={() => { setEditingType(null); setTypeDrawerOpen(true); }}
               className="text-xs font-medium px-3 py-1.5 rounded-md bg-[var(--color-primary)] text-white hover:scale-[1.03] transition-transform duration-150"
               style={{ transitionTimingFunction: "var(--ease-out)" }}
             >
@@ -276,9 +223,17 @@ export default function LeavePage({
           ) : (
             <div className="flex flex-wrap gap-2 p-4">
               {leaveTypes.map((t) => (
-                <span key={t.id} className="text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--color-violet-tint)] text-[var(--color-primary)]">
+                <button
+                  key={t.id}
+                  onClick={() => { setEditingType(t); setTypeDrawerOpen(true); }}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors duration-150 ${
+                    t.is_active
+                      ? "bg-[var(--color-violet-tint)] text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white"
+                      : "bg-[#f3f2f5] text-[#9089a0] line-through hover:bg-[#e5e3e8]"
+                  }`}
+                >
                   {t.name} &middot; {t.default_days_per_year}/yr
-                </span>
+                </button>
               ))}
             </div>
           )}
@@ -286,10 +241,7 @@ export default function LeavePage({
       )}
 
       {canApprove && (
-        <Section
-          eyebrow="Admin"
-          title="Team leave balances"
-          count={teamBalances.length}
+        <Section eyebrow="Admin" title="Team leave balances" count={teamBalances.length}
           action={
             <button
               onClick={() => setBalanceDrawerOpen(true)}
@@ -303,28 +255,33 @@ export default function LeavePage({
           {teamBalances.length === 0 ? (
             <EmptyRow text="No balances allocated yet." />
           ) : (
-            <table className="w-full text-sm min-w-[520px]">
+            <table className="w-full text-sm min-w-[580px]">
               <thead>
                 <tr className="text-left text-[10.5px] font-semibold tracking-wide uppercase text-[#9089a0]">
                   <th className="py-3.5 px-3.5">Employee</th>
                   <th className="py-3.5 px-3.5">Type</th>
-                  <th className="py-3.5 px-3.5">Allocated</th>
+                  <th className="py-3.5 px-3.5">Entitlement</th>
                   <th className="py-3.5 px-3.5">Used</th>
+                  <th className="py-3.5 px-3.5">Pending</th>
                   <th className="py-3.5 px-3.5">Remaining</th>
                 </tr>
               </thead>
               <tbody>
-                {teamBalances.map((b) => (
-                  <tr key={b.id} className="border-t border-black/[0.05]">
-                    <td className="py-3.5 px-3.5">{b.employees ? `${b.employees.first_name} ${b.employees.last_name}` : "—"}</td>
-                    <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{b.leave_types?.name}</td>
-                    <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{b.days_allocated}</td>
-                    <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{b.days_used}</td>
-                    <td className="py-3.5 px-3.5 font-medium text-[var(--color-text-primary)]">
-                      {Number(b.days_allocated) - Number(b.days_used)}
-                    </td>
-                  </tr>
-                ))}
+                {teamBalances.map((b) => {
+                  const pending = pendingByEmployeeAndType[`${b.employee_id}:${b.leave_type_id}`] ?? 0;
+                  return (
+                    <tr key={b.id} className="border-t border-black/[0.05]">
+                      <td className="py-3.5 px-3.5">{b.employees ? `${b.employees.first_name} ${b.employees.last_name}` : "—"}</td>
+                      <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{b.leave_types?.name}</td>
+                      <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{b.days_allocated}</td>
+                      <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{b.days_used}</td>
+                      <td className="py-3.5 px-3.5 text-[var(--color-text-muted)]">{pending}</td>
+                      <td className="py-3.5 px-3.5 font-medium text-[var(--color-text-primary)]">
+                        {Number(b.days_allocated) - Number(b.days_used) - pending}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -337,6 +294,7 @@ export default function LeavePage({
           onClose={() => setTypeDrawerOpen(false)}
           onSaved={() => router.refresh()}
           companyId={companyId}
+          editingType={editingType}
         />
       )}
 
@@ -352,14 +310,26 @@ export default function LeavePage({
         />
       )}
 
+      {canApprove && (
+        <LeaveReviewDrawer
+          open={Boolean(reviewing)}
+          onClose={() => setReviewing(null)}
+          onSaved={() => router.refresh()}
+          request={reviewing}
+          profileId={profileId}
+        />
+      )}
+
       {employeeId && (
         <LeaveRequestDrawer
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}
           onSaved={() => router.refresh()}
-          leaveTypes={leaveTypes}
+          leaveTypes={activeLeaveTypes}
           employeeId={employeeId}
           companyId={companyId}
+          myBalances={myBalances}
+          pendingByEmployeeAndType={pendingByEmployeeAndType}
         />
       )}
 
@@ -369,6 +339,15 @@ export default function LeavePage({
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
+    </div>
+  );
+}
+
+function Stat({ label, value, highlight }) {
+  return (
+    <div>
+      <p className={`text-base font-semibold ${highlight ? "text-[var(--color-primary)]" : "text-[var(--color-text-primary)]"}`}>{value}</p>
+      <p className="text-[9.5px] font-medium tracking-wide uppercase text-[#9089a0] mt-0.5">{label}</p>
     </div>
   );
 }

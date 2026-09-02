@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { sendNotificationEmail } from "@/lib/sendNotificationEmail";
 
@@ -11,7 +11,12 @@ function daysBetween(start, end) {
   return diff >= 0 ? diff + 1 : null;
 }
 
-export default function LeaveRequestDrawer({ open, onClose, onSaved, leaveTypes, employeeId, companyId }) {
+// 7.2 — before submitting, show exactly what the brief asks for:
+// "You have N days remaining." The real enforcement is a database
+// trigger (enforce_leave_balance) that blocks the insert server-side
+// regardless of what this UI shows — this is a proactive heads-up,
+// not the actual gate, so it can't be bypassed by a stale prop.
+export default function LeaveRequestDrawer({ open, onClose, onSaved, leaveTypes, employeeId, companyId, myBalances, pendingByEmployeeAndType }) {
   const supabase = createClient();
   const [leaveTypeId, setLeaveTypeId] = useState(leaveTypes[0]?.id ?? "");
   const [startDate, setStartDate] = useState("");
@@ -21,6 +26,15 @@ export default function LeaveRequestDrawer({ open, onClose, onSaved, leaveTypes,
   const [error, setError] = useState(null);
 
   const days = startDate && endDate ? daysBetween(startDate, endDate) : null;
+
+  const remaining = useMemo(() => {
+    const balance = myBalances.find((b) => b.leave_type_id === leaveTypeId);
+    if (!balance) return null;
+    const pending = pendingByEmployeeAndType[`${employeeId}:${leaveTypeId}`] ?? 0;
+    return Number(balance.days_allocated) - Number(balance.days_used) - pending;
+  }, [myBalances, pendingByEmployeeAndType, leaveTypeId, employeeId]);
+
+  const exceedsBalance = remaining != null && days != null && days > remaining;
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -44,9 +58,13 @@ export default function LeaveRequestDrawer({ open, onClose, onSaved, leaveTypes,
       status: "pending",
     });
 
-    setSaving(false);
-
     if (dbError) {
+      setSaving(false);
+      // The DB trigger's own message ("Insufficient leave balance —
+      // you have N day(s) remaining." / "No X balance has been
+      // allocated...") is already written for a human to read —
+      // surfaced as-is, same as every other trigger-raised error in
+      // this app.
       setError(dbError.message);
       return;
     }
@@ -79,6 +97,7 @@ export default function LeaveRequestDrawer({ open, onClose, onSaved, leaveTypes,
       );
     }
 
+    setSaving(false);
     setStartDate("");
     setEndDate("");
     setReason("");
@@ -126,6 +145,11 @@ export default function LeaveRequestDrawer({ open, onClose, onSaved, leaveTypes,
                 </option>
               ))}
             </select>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1.5">
+              {remaining == null
+                ? "No balance allocated yet for this type — contact HR."
+                : `You have ${remaining} day${remaining === 1 ? "" : "s"} remaining.`}
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -160,8 +184,10 @@ export default function LeaveRequestDrawer({ open, onClose, onSaved, leaveTypes,
           </div>
 
           {days !== null && (
-            <p className="text-xs text-[var(--color-text-muted)] font-mono">
-              {days} day{days !== 1 ? "s" : ""} requested
+            <p className={`text-xs font-mono ${exceedsBalance ? "text-red-600 font-medium" : "text-[var(--color-text-muted)]"}`}>
+              {exceedsBalance
+                ? `❌ Insufficient leave balance — ${days} day${days !== 1 ? "s" : ""} requested, only ${remaining} remaining.`
+                : `${days} day${days !== 1 ? "s" : ""} requested`}
             </p>
           )}
 
