@@ -30,6 +30,9 @@ export default function PayrollPage({
   companyId,
   employeeName,
   companyName,
+  companyAddress,
+  companyRcNumber,
+  myEmployee,
   structures,
   employees,
   profileId,
@@ -42,6 +45,7 @@ export default function PayrollPage({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [structureEmployee, setStructureEmployee] = useState(null);
+  const [companyDrawerOpen, setCompanyDrawerOpen] = useState(false);
 
   const structureByEmployeeId = {};
   structures.forEach((s) => (structureByEmployeeId[s.employee_id] = s));
@@ -86,16 +90,25 @@ export default function PayrollPage({
           </div>
         </div>
         {canManage && (
-          <button
-            onClick={() => setDrawerOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-transform duration-150 hover:scale-[1.03] active:scale-95"
-            style={{ backgroundColor: "var(--color-primary)", transitionTimingFunction: "var(--ease-out)" }}
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            New payroll run
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCompanyDrawerOpen(true)}
+              className="text-sm font-medium px-4 py-2.5 rounded-lg border border-black/10 text-[var(--color-text-muted)] hover:bg-black/[0.03] transition-colors duration-150"
+              style={{ transitionTimingFunction: "var(--ease-out)" }}
+            >
+              Company details
+            </button>
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-transform duration-150 hover:scale-[1.03] active:scale-95"
+              style={{ backgroundColor: "var(--color-primary)", transitionTimingFunction: "var(--ease-out)" }}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              New payroll run
+            </button>
+          </div>
         )}
       </div>
 
@@ -230,11 +243,21 @@ export default function PayrollPage({
                         onClick={() =>
                           downloadPayslipPdf({
                             companyName,
+                            companyAddress,
+                            companyRcNumber,
                             employeeName,
+                            jobTitle: myEmployee?.job_title,
+                            department: myEmployee?.department,
+                            employeeRef: myEmployee?.id ? myEmployee.id.slice(0, 8).toUpperCase() : undefined,
+                            bankName: myEmployee?.bank_name,
+                            bankAccountNumber: myEmployee?.bank_account_number,
                             periodLabel: periodLabel(p.payroll_runs.period_month, p.payroll_runs.period_year),
+                            payDate: new Date(p.created_at ?? Date.now()).toLocaleDateString("en-GB"),
                             grossPay: Number(p.gross_pay),
                             deductions: Number(p.deductions),
                             netPay: Number(p.net_pay),
+                            breakdown: p.breakdown,
+                            loanRepayments: p.loanRepayments,
                           })
                         }
                         className="text-xs font-medium px-3 py-1.5 rounded-md bg-[var(--color-violet-tint)] text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white transition-colors duration-150"
@@ -323,6 +346,17 @@ export default function PayrollPage({
         />
       )}
 
+      {companyDrawerOpen && (
+        <CompanyDetailsDrawer
+          companyId={companyId}
+          companyName={companyName}
+          companyAddress={companyAddress}
+          companyRcNumber={companyRcNumber}
+          onClose={() => setCompanyDrawerOpen(false)}
+          onSaved={() => router.refresh()}
+        />
+      )}
+
       <style jsx global>{`
         @keyframes rowIn {
           from { opacity: 0; transform: translateY(6px); }
@@ -354,4 +388,77 @@ function Section({ eyebrow, title, action, children }) {
 
 function EmptyRow({ text }) {
   return <p className="text-center py-9 text-sm text-[var(--color-text-muted)]">{text}</p>;
+}
+
+// 11 — the letterhead fields a professional payslip PDF needs
+// (company address, RC number) are optional and nullable — this is
+// the only way to actually set them, since nothing seeds them.
+function CompanyDetailsDrawer({ companyId, companyName, companyAddress, companyRcNumber, onClose, onSaved }) {
+  const supabase = createClient();
+  const [address, setAddress] = useState(companyAddress ?? "");
+  const [rcNumber, setRcNumber] = useState(companyRcNumber ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+
+    const { error: dbError } = await supabase
+      .from("companies")
+      .update({ address: address.trim() || null, rc_number: rcNumber.trim() || null })
+      .eq("id", companyId);
+
+    setSaving(false);
+    if (dbError) {
+      setError(dbError.message);
+      return;
+    }
+    onSaved();
+    onClose();
+  }
+
+  const inputClass = "w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none";
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/35 animate-[fadeIn_200ms_var(--ease-out)]" onClick={onClose} />
+      <div className="absolute top-0 right-0 bottom-0 w-full max-w-[360px] bg-white p-7 overflow-y-auto shadow-2xl animate-[slideIn_280ms_var(--ease-out)]">
+        <h2 className="font-display text-lg font-semibold text-[var(--color-text-primary)]">Company details</h2>
+        <p className="text-sm text-[var(--color-text-muted)] mt-1 mb-6">
+          Shown on the payslip PDF letterhead for {companyName}. Both optional.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Registered address</label>
+            <textarea rows={3} value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass} placeholder="e.g. 12 Adeola Odeku Street, Victoria Island, Lagos" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">RC number</label>
+            <input type="text" value={rcNumber} onChange={(e) => setRcNumber(e.target.value)} className={inputClass} placeholder="e.g. RC1234567" />
+          </div>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <div className="flex gap-2.5 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 border border-black/10 rounded-lg py-2.5 text-sm font-medium text-[var(--color-text-muted)] hover:bg-black/[0.03] transition-colors duration-150">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving} className="flex-[1.4] rounded-lg py-2.5 text-sm font-medium text-white transition-transform duration-150 hover:scale-[1.02] active:scale-95 disabled:opacity-60" style={{ backgroundColor: "var(--color-primary)" }}>
+              {saving ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <style jsx global>{`
+        @keyframes slideIn {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+      `}</style>
+    </div>
+  );
 }

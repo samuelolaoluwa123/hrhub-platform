@@ -13,6 +13,7 @@ export default function SalaryStructureDrawer({ open, onClose, onSaved, employee
       : [{ name: "", amount: "" }]
   );
   const [pensionRate, setPensionRate] = useState(structure?.pension_employee_rate ?? 8);
+  const [pensionEmployerRate, setPensionEmployerRate] = useState(structure?.pension_employer_rate ?? 10);
   const [changeReason, setChangeReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -22,7 +23,7 @@ export default function SalaryStructureDrawer({ open, onClose, onSaved, employee
     if (row.name.trim()) allowances[row.name.trim()] = Number(row.amount) || 0;
   });
 
-  const preview = computePayslip({ baseSalary, allowances, pensionEmployeeRate: pensionRate });
+  const preview = computePayslip({ baseSalary, allowances, pensionEmployeeRate: pensionRate, pensionEmployerRate });
 
   function updateRow(i, field, value) {
     setAllowanceRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
@@ -46,6 +47,7 @@ export default function SalaryStructureDrawer({ open, onClose, onSaved, employee
         base_salary: Number(baseSalary) || 0,
         allowances,
         pension_employee_rate: Number(pensionRate) || 0,
+        pension_employer_rate: Number(pensionEmployerRate) || 0,
         change_reason: changeReason.trim() || null,
         created_by: profileId,
         updated_at: new Date().toISOString(),
@@ -141,19 +143,36 @@ export default function SalaryStructureDrawer({ open, onClose, onSaved, employee
             </button>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Pension (employee %)</label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.5"
-              value={pensionRate}
-              onChange={(e) => setPensionRate(e.target.value)}
-              className={inputClass}
-              onFocus={focusRing}
-              onBlur={clearRing}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Pension — employee %</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={pensionRate}
+                onChange={(e) => setPensionRate(e.target.value)}
+                className={inputClass}
+                onFocus={focusRing}
+                onBlur={clearRing}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Pension — employer %</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={pensionEmployerRate}
+                onChange={(e) => setPensionEmployerRate(e.target.value)}
+                className={inputClass}
+                onFocus={focusRing}
+                onBlur={clearRing}
+              />
+              <p className="text-[10.5px] text-[var(--color-text-muted)] mt-1">Disclosed on the payslip, never deducted from net pay.</p>
+            </div>
           </div>
 
           {structure && (
@@ -178,7 +197,8 @@ export default function SalaryStructureDrawer({ open, onClose, onSaved, employee
 
           <div className="rounded-lg bg-[var(--color-violet-tint)] px-4 py-3.5 space-y-1 text-sm">
             <div className="flex justify-between"><span className="text-[var(--color-text-muted)]">Gross pay</span><span className="font-mono">₦{preview.grossPay.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
-            <div className="flex justify-between"><span className="text-[var(--color-text-muted)]">Pension</span><span className="font-mono">−₦{preview.pensionMonthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+            <div className="flex justify-between"><span className="text-[var(--color-text-muted)]">Pension (employee)</span><span className="font-mono">−₦{preview.pensionMonthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+            <div className="flex justify-between"><span className="text-[var(--color-text-muted)]">Pension (employer, not deducted)</span><span className="font-mono">₦{preview.pensionEmployerMonthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
             <div className="flex justify-between"><span className="text-[var(--color-text-muted)]">Est. PAYE tax</span><span className="font-mono">−₦{preview.taxMonthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
             <div className="flex justify-between font-medium text-[var(--color-primary)] pt-1 border-t border-black/[0.06]"><span>Est. net pay</span><span className="font-mono">₦{preview.netPay.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
           </div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { sendNotificationEmail } from "@/lib/sendNotificationEmail";
 import { computePayslip } from "@/lib/calculatePayroll";
+import { downloadPayslipPdf } from "@/lib/generatePayslipPdf";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -17,10 +18,15 @@ const STATUS_BADGE = {
 };
 const STATUS_LABEL = { draft: "Draft", processed: "Processed", paid: "Paid" };
 
-export default function RunDetail({ run, employeesWithPayslips, companyId }) {
+function periodLabel(month, year) {
+  return `${MONTH_NAMES[month - 1]} ${year}`;
+}
+
+export default function RunDetail({ run, employeesWithPayslips, companyId, company, profileId }) {
   const router = useRouter();
   const supabase = createClient();
   const [drawerEmployee, setDrawerEmployee] = useState(null);
+  const [adjustingEmployee, setAdjustingEmployee] = useState(null);
   const [statusSaving, setStatusSaving] = useState(false);
 
   async function updateRunStatus(newStatus) {
@@ -28,6 +34,27 @@ export default function RunDetail({ run, employeesWithPayslips, companyId }) {
     await supabase.from("payroll_runs").update({ status: newStatus }).eq("id", run.id);
     setStatusSaving(false);
     router.refresh();
+  }
+
+  function handleDownload(e) {
+    downloadPayslipPdf({
+      companyName: company?.name,
+      companyAddress: company?.address,
+      companyRcNumber: company?.rc_number,
+      employeeName: `${e.first_name} ${e.last_name}`,
+      jobTitle: e.job_title,
+      department: e.department,
+      employeeRef: e.id.slice(0, 8).toUpperCase(),
+      bankName: e.bank_name,
+      bankAccountNumber: e.bank_account_number,
+      periodLabel: periodLabel(run.period_month, run.period_year),
+      payDate: new Date(e.payslip.created_at ?? Date.now()).toLocaleDateString("en-GB"),
+      grossPay: Number(e.payslip.gross_pay),
+      deductions: Number(e.payslip.deductions),
+      netPay: Number(e.payslip.net_pay),
+      breakdown: e.payslip.breakdown,
+      loanRepayments: e.payslipLoanRepayments,
+    });
   }
 
   const paidCount = employeesWithPayslips.filter((e) => e.payslip).length;
@@ -106,9 +133,25 @@ export default function RunDetail({ run, employeesWithPayslips, companyId }) {
                   </td>
                   <td className="py-3.5 px-3.5 text-right">
                     {e.payslip ? (
-                      <span className="text-xs font-medium px-2.5 py-1 rounded-md bg-[#e8f9f0] text-[#1a9c5f]">
-                        Added
-                      </span>
+                      <div className="flex items-center gap-1.5 justify-end">
+                        {e.payslipAdjustments.length > 0 && (
+                          <span className="text-[10.5px] font-medium px-2 py-1 rounded-md bg-[#fef3e2] text-[#d68a1f]">Adjusted</span>
+                        )}
+                        <button
+                          onClick={() => handleDownload(e)}
+                          className="text-xs font-medium px-3 py-1.5 rounded-md bg-[var(--color-violet-tint)] text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white transition-colors duration-150"
+                          style={{ transitionTimingFunction: "var(--ease-out)" }}
+                        >
+                          Download
+                        </button>
+                        <button
+                          onClick={() => setAdjustingEmployee(e)}
+                          className="text-xs font-medium px-3 py-1.5 rounded-md border border-black/10 text-[var(--color-text-muted)] hover:bg-black/[0.03] transition-colors duration-150"
+                          style={{ transitionTimingFunction: "var(--ease-out)" }}
+                        >
+                          Adjust
+                        </button>
+                      </div>
                     ) : (
                       <button
                         onClick={() => setDrawerEmployee(e)}
@@ -134,6 +177,19 @@ export default function RunDetail({ run, employeesWithPayslips, companyId }) {
           onClose={() => setDrawerEmployee(null)}
           onSaved={() => {
             setDrawerEmployee(null);
+            router.refresh();
+          }}
+        />
+      )}
+
+      {adjustingEmployee && (
+        <PayslipAdjustDrawer
+          employee={adjustingEmployee}
+          companyId={companyId}
+          profileId={profileId}
+          onClose={() => setAdjustingEmployee(null)}
+          onSaved={() => {
+            setAdjustingEmployee(null);
             router.refresh();
           }}
         />
@@ -166,6 +222,7 @@ function AddPayslipDrawer({ employee, run, companyId, onClose, onSaved }) {
         baseSalary: structure.base_salary,
         allowances: structure.allowances,
         pensionEmployeeRate: structure.pension_employee_rate,
+        pensionEmployerRate: structure.pension_employer_rate,
       })
     : null;
 
@@ -209,13 +266,24 @@ function AddPayslipDrawer({ employee, run, companyId, onClose, onSaved }) {
         net_pay: net,
         // Keep the calculated breakdown for reference even if the admin
         // tweaked the final numbers above — null when there was no
-        // salary structure to calculate from at all (fully manual entry).
+        // salary structure to calculate from at all (fully manual
+        // entry). This is what the payslip PDF's earnings/pension/tax
+        // sections render from — a real snapshot at issue time, not
+        // recomputed later from a salary structure that may have since
+        // changed.
         breakdown: initial
           ? {
               base_salary: initial.baseSalary,
               allowances: initial.allowances,
               pension_monthly: initial.pensionMonthly,
+              pension_employee_rate: structure.pension_employee_rate,
+              pension_employer_monthly: initial.pensionEmployerMonthly,
+              pension_employer_rate: structure.pension_employer_rate,
               tax_monthly: initial.taxMonthly,
+              annual_gross: initial.annualGross,
+              annual_pension: initial.pensionMonthly * 12,
+              annual_chargeable_income: initial.taxableAnnual,
+              annual_tax: initial.annualTax,
             }
           : null,
       })
@@ -386,6 +454,143 @@ function AddPayslipDrawer({ employee, run, companyId, onClose, onSaved }) {
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+// 11 Payroll locking — the original payslip is never touched (it has
+// no UPDATE/DELETE policy at all, unconditionally). A correction is
+// its own permanent row instead: what it was, what it should be, and
+// why — the "Adjustment -> authorization -> audit record" the brief
+// describes. Authorization is admin-only RLS (already enforced
+// server-side, not just this form); the audit record is this row
+// itself, plus a matching audit_log entry via the same trigger every
+// other lifecycle event in this app goes through.
+function PayslipAdjustDrawer({ employee, companyId, profileId, onClose, onSaved }) {
+  const supabase = createClient();
+  const payslip = employee.payslip;
+  const [grossPay, setGrossPay] = useState(String(payslip.gross_pay));
+  const [deductions, setDeductions] = useState(String(payslip.deductions));
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const netPay = Number(grossPay || 0) - Number(deductions || 0);
+  const unchanged = Number(grossPay) === Number(payslip.gross_pay) && Number(deductions) === Number(payslip.deductions);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!reason.trim()) {
+      setError("A reason is required to record a correction.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+
+    const { error: dbError } = await supabase.from("payslip_adjustments").insert({
+      company_id: companyId,
+      payslip_id: payslip.id,
+      employee_id: employee.id,
+      original_gross_pay: payslip.gross_pay,
+      original_deductions: payslip.deductions,
+      original_net_pay: payslip.net_pay,
+      corrected_gross_pay: Number(grossPay),
+      corrected_deductions: Number(deductions),
+      corrected_net_pay: netPay,
+      reason: reason.trim(),
+      adjusted_by: profileId,
+    });
+
+    setSaving(false);
+    if (dbError) {
+      setError(dbError.message);
+      return;
+    }
+    onSaved();
+  }
+
+  const inputClass = "w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none";
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/35 animate-[fadeIn_200ms_var(--ease-out)]" onClick={onClose} />
+      <div className="absolute top-0 right-0 bottom-0 w-full max-w-[380px] bg-white p-7 overflow-y-auto shadow-2xl animate-[slideIn_280ms_var(--ease-out)]">
+        <h2 className="font-display text-lg font-semibold text-[var(--color-text-primary)]">Adjust payslip</h2>
+        <p className="text-sm text-[var(--color-text-muted)] mt-1 mb-6">
+          For {employee.first_name} {employee.last_name}. The original payslip is never edited — this records a correction alongside it.
+        </p>
+
+        {employee.payslipAdjustments.length > 0 && (
+          <div className="mb-6 space-y-2">
+            <p className="text-[10.5px] font-semibold tracking-wide uppercase text-[var(--color-accent)]">Previous corrections</p>
+            {employee.payslipAdjustments.map((a) => (
+              <div key={a.id} className="rounded-lg bg-[var(--color-violet-tint)] px-3.5 py-2.5 text-xs">
+                <p className="text-[var(--color-text-primary)]">
+                  ₦{Number(a.original_net_pay).toLocaleString()} → ₦{Number(a.corrected_net_pay).toLocaleString()}
+                </p>
+                <p className="text-[var(--color-text-muted)] mt-0.5">{a.reason}</p>
+                <p className="text-[var(--color-text-muted)] mt-0.5">{new Date(a.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="rounded-lg border border-black/[0.06] px-3.5 py-2.5 mb-5 text-xs text-[var(--color-text-muted)]">
+          Issued as: ₦{Number(payslip.gross_pay).toLocaleString()} gross · ₦{Number(payslip.deductions).toLocaleString()} deductions · ₦{Number(payslip.net_pay).toLocaleString()} net
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Corrected gross pay (₦)</label>
+            <input type="number" min="0" value={grossPay} onChange={(e) => setGrossPay(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Corrected deductions (₦)</label>
+            <input type="number" min="0" value={deductions} onChange={(e) => setDeductions(e.target.value)} className={inputClass} />
+          </div>
+          <p className="text-sm font-mono text-[var(--color-text-primary)]">Corrected net pay: ₦{netPay.toLocaleString()}</p>
+
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Reason for correction</label>
+            <textarea
+              required
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="What was wrong, and why this is the right figure"
+              className={inputClass}
+            />
+          </div>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <div className="flex gap-2.5 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 border border-black/10 rounded-lg py-2.5 text-sm font-medium text-[var(--color-text-muted)] hover:bg-black/[0.03] transition-colors duration-150"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving || unchanged}
+              className="flex-[1.4] rounded-lg py-2.5 text-sm font-medium text-white transition-transform duration-150 hover:scale-[1.02] active:scale-95 disabled:opacity-60"
+              style={{ backgroundColor: "var(--color-primary)" }}
+              title={unchanged ? "Change gross pay or deductions to record a correction" : undefined}
+            >
+              {saving ? "Recording..." : "Record correction"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <style jsx global>{`
+        @keyframes slideIn {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+      `}</style>
     </div>
   );
 }
