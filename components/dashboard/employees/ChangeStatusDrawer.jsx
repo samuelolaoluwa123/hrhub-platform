@@ -14,6 +14,7 @@ const clearRing = (e) => (e.target.style.boxShadow = "none");
 export default function ChangeStatusDrawer({ open, onClose, onSaved, employee, statuses }) {
   const supabase = createClient();
   const nonExitStatuses = statuses.filter((s) => !s.is_exit);
+  const statusByName = new Map(statuses.map((s) => [s.name, s]));
 
   const [status, setStatus] = useState("");
   const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().slice(0, 10));
@@ -26,13 +27,29 @@ export default function ChangeStatusDrawer({ open, onClose, onSaved, employee, s
   // unconditionally, toggling `open`/`employee`) — a bare useState
   // initializer only runs once on first mount, so it'd never pick up a
   // later employee without this.
+  //
+  // Real bug found while testing the exit-access-restore flow: this
+  // used to default straight to `employee.status`, but this drawer's
+  // <select> only ever lists non-exit statuses. When the employee's
+  // current status IS an exit status (exactly the reactivation case —
+  // the only reason this drawer would ever be opened on an exited
+  // employee), that value matches none of the <option>s. A controlled
+  // <select> with no matching option can't mark anything as selected,
+  // so the browser visually falls back to showing the first option
+  // ("Active") while React's own `status` state silently keeps holding
+  // the real (exit) value the whole time — the dropdown *looks* like
+  // "Active" is chosen, but submitting sends the invisible old status,
+  // completely unchanged. Falling back to the first real option here
+  // keeps what's displayed and what's submitted in sync.
   useEffect(() => {
     if (!open) return;
-    setStatus(employee?.status ?? "");
+    const currentIsValidOption = nonExitStatuses.some((s) => s.name === employee?.status);
+    setStatus(currentIsValidOption ? employee.status : nonExitStatuses[0]?.name ?? "");
     setEffectiveDate(new Date().toISOString().slice(0, 10));
     setReason("");
     setNotes("");
     setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, employee]);
 
   if (!open || !employee) return null;
@@ -41,6 +58,8 @@ export default function ChangeStatusDrawer({ open, onClose, onSaved, employee, s
     e.preventDefault();
     setSaving(true);
     setError(null);
+
+    const wasExit = statusByName.get(employee.status)?.is_exit;
 
     const { error: dbError } = await supabase
       .from("employees")
@@ -52,13 +71,30 @@ export default function ChangeStatusDrawer({ open, onClose, onSaved, employee, s
       })
       .eq("id", employee.id);
 
-    setSaving(false);
-
     if (dbError) {
+      setSaving(false);
       setError(dbError.message);
       return;
     }
 
+    // 13 — the symmetric undo of ExitEmployeeDrawer's access revoke: a
+    // mis-recorded exit or a genuine rehire moving back to a non-exit
+    // status (the only kind this drawer offers) should restore login
+    // access, not leave it permanently banned. Same non-blocking
+    // treatment — the status change itself already succeeded.
+    if (wasExit) {
+      try {
+        await fetch("/api/employees/portal-access", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ employeeId: employee.id, restore: true }),
+        });
+      } catch (restoreErr) {
+        console.error("Failed to restore portal access:", restoreErr);
+      }
+    }
+
+    setSaving(false);
     onSaved();
     onClose();
   }

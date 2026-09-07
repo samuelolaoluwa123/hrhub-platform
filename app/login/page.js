@@ -175,6 +175,12 @@ export default function LoginPage() {
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
+
+          <p className="text-center mt-6">
+            <Link href="/privacy" className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-primary)]">
+              Privacy &amp; data processing notice
+            </Link>
+          </p>
         </div>
       </div>
     </main>

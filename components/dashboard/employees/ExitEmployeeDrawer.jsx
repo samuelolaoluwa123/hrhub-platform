@@ -68,11 +68,24 @@ export default function ExitEmployeeDrawer({ open, onClose, onSaved, employee, s
       p_notes: notes.trim() || null,
     });
 
-    setSaving(false);
-
     if (dbError) {
+      setSaving(false);
       setError(dbError.message);
       return;
+    }
+
+    // 13 — the exit record is the source of truth and must never be
+    // blocked by this second call; if revoking access fails for some
+    // reason, the exit itself still went through and access can be
+    // cut manually as a fallback. Never surfaced as a blocking error.
+    try {
+      await fetch("/api/employees/portal-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId: employee.id }),
+      });
+    } catch (revokeErr) {
+      console.error("Failed to revoke portal access after exit:", revokeErr);
     }
 
     onSaved();

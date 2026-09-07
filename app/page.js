@@ -199,6 +199,12 @@ export default function LandingPage() {
           </a>
         </Reveal>
       </section>
+
+      <footer className="py-6 px-6 bg-[var(--color-hero-bg)] text-center border-t border-white/[0.08]">
+        <a href="/privacy" className="text-xs text-[#a99fc0] hover:text-white transition-colors duration-150">
+          Privacy &amp; data processing notice
+        </a>
+      </footer>
     </main>
   );
 }

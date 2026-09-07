@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import EmployeeDrawer from "./EmployeeDrawer";
 import ChangeStatusDrawer from "./ChangeStatusDrawer";
 import ExitEmployeeDrawer from "./ExitEmployeeDrawer";
+import PurgeDocumentsDrawer from "./PurgeDocumentsDrawer";
 import EmployeeAvatar from "@/components/dashboard/EmployeeAvatar";
 
 // Badge color is derived from the status's flags, not its name — the
@@ -26,6 +27,7 @@ export default function EmployeesTable({ initialEmployees, statuses, canManage, 
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [statusDrawerEmployee, setStatusDrawerEmployee] = useState(null);
   const [exitDrawerEmployee, setExitDrawerEmployee] = useState(null);
+  const [purgeDrawerEmployee, setPurgeDrawerEmployee] = useState(null);
   const [invitingId, setInvitingId] = useState(null);
   const [inviteError, setInviteError] = useState(null);
 
@@ -266,6 +268,20 @@ export default function EmployeesTable({ initialEmployees, statuses, canManage, 
                           </svg>
                         </button>
                       )}
+                      {isAdmin && statusByName.get(emp.status)?.is_exit && (
+                        <button
+                          onClick={() => setPurgeDrawerEmployee(emp)}
+                          className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--color-text-muted)] transition-colors duration-150 hover:bg-[#fde8e8] hover:text-[#cc3333] shrink-0"
+                          style={{ transitionTimingFunction: "var(--ease-out)" }}
+                          aria-label={`Purge documents for ${emp.first_name}`}
+                          title="Purge documents"
+                        >
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" />
+                            <path d="M10 11v6M14 11v6" />
+                          </svg>
+                        </button>
+                      )}
                       {canManage && (
                         <button
                           onClick={() => openEdit(emp)}
@@ -316,6 +332,13 @@ export default function EmployeesTable({ initialEmployees, statuses, canManage, 
         employee={exitDrawerEmployee}
         statuses={statuses}
         employees={employees}
+      />
+
+      <PurgeDocumentsDrawer
+        open={!!purgeDrawerEmployee}
+        onClose={() => setPurgeDrawerEmployee(null)}
+        onPurged={refresh}
+        employee={purgeDrawerEmployee}
       />
 
       <style jsx global>{`
