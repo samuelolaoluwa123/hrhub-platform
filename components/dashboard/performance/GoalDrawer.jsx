@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 export default function GoalDrawer({ open, onClose, onSaved, employeeId, companyId, profileId }) {
   const supabase = createClient();
+  const toast = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [targetDate, setTargetDate] = useState("");
@@ -35,6 +37,7 @@ export default function GoalDrawer({ open, onClose, onSaved, employeeId, company
     setTitle("");
     setDescription("");
     setTargetDate("");
+    toast.showSuccess("Goal added.");
     onSaved();
     onClose();
   }

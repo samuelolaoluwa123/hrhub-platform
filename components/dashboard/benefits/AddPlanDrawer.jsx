@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 import { CATEGORY_LABEL } from "./BenefitsPage";
 
 export default function AddPlanDrawer({ open, onClose, onSaved, companyId }) {
   const supabase = createClient();
+  const toast = useToast();
   const [name, setName] = useState("");
   const [category, setCategory] = useState("health");
   const [provider, setProvider] = useState("");
@@ -40,6 +42,7 @@ export default function AddPlanDrawer({ open, onClose, onSaved, companyId }) {
     setProvider("");
     setCost("0");
     setDescription("");
+    toast.showSuccess("Benefit plan added.");
     onSaved();
     onClose();
   }

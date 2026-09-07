@@ -96,7 +96,7 @@ export default function PostingDetail({ posting, applications, panelCandidates, 
             value={posting.status}
             disabled={changingStatus}
             onChange={(e) => handlePostingStatus(e.target.value)}
-            className="text-xs font-medium px-3 py-2 rounded-lg border border-black/10 outline-none disabled:opacity-50"
+            className="text-xs font-medium px-3 py-2 rounded-lg border border-black/10 outline-none focus:ring-2 focus:ring-[var(--color-accent)] disabled:opacity-50"
           >
             {Object.entries(POSTING_STATUS_LABEL).map(([id, label]) => (
               <option key={id} value={id}>{label}</option>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 // 6.1 — the employee-driven clock-in/out flow has no way to represent
 // someone who never showed up at all (there's no row to correct).
@@ -9,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 // or a recent past date.
 export default function MarkAbsentDrawer({ open, onClose, onSaved, companyId, employees }) {
   const supabase = createClient();
+  const toast = useToast();
   const [employeeId, setEmployeeId] = useState(employees[0]?.id ?? "");
   const [workDate, setWorkDate] = useState(new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState("");
@@ -38,6 +40,7 @@ export default function MarkAbsentDrawer({ open, onClose, onSaved, companyId, em
 
     setSaving(false);
     if (dbError) { setError(dbError.message); return; }
+    toast.showSuccess("Marked absent.");
     onSaved();
     onClose();
   }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 const SOURCES = [
   { id: "direct", label: "Direct application" },
@@ -12,6 +13,7 @@ const SOURCES = [
 
 export default function AddCandidateDrawer({ open, onClose, onSaved, companyId, postingId }) {
   const supabase = createClient();
+  const toast = useToast();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -77,6 +79,7 @@ export default function AddCandidateDrawer({ open, onClose, onSaved, companyId, 
     setPhone("");
     setSource("direct");
     setResume(null);
+    toast.showSuccess("Candidate added.");
     onSaved();
     onClose();
   }

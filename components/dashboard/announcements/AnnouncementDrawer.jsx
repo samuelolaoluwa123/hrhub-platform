@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 import { sendNotificationEmail } from "@/lib/sendNotificationEmail";
 
 const CATEGORIES = [
@@ -23,6 +24,7 @@ const AUDIENCE_OPTIONS = [
 // center, not just on the Announcements page if they happen to visit.
 export default function AnnouncementDrawer({ open, onClose, onSaved, companyId, profileId, employees }) {
   const supabase = createClient();
+  const toast = useToast();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [category, setCategory] = useState("general");
@@ -105,6 +107,7 @@ export default function AnnouncementDrawer({ open, onClose, onSaved, companyId, 
     setAudienceType("company");
     setAudienceValue("");
     setAudienceEmployeeId("");
+    toast.showSuccess("Announcement posted.");
     onSaved();
     onClose();
   }

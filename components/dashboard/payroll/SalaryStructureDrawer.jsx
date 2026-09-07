@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 import { computePayslip } from "@/lib/calculatePayroll";
 
 export default function SalaryStructureDrawer({ open, onClose, onSaved, employee, structure, companyId, profileId }) {
   const supabase = createClient();
+  const toast = useToast();
   const [baseSalary, setBaseSalary] = useState(structure?.base_salary ?? "");
   const [allowanceRows, setAllowanceRows] = useState(
     structure?.allowances && Object.keys(structure.allowances).length
@@ -62,6 +64,7 @@ export default function SalaryStructureDrawer({ open, onClose, onSaved, employee
       return;
     }
 
+    toast.showSuccess("Salary structure saved.");
     onSaved();
     onClose();
   }

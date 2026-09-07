@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 export default function RequisitionDrawer({ open, onClose, onSaved, companyId, profileId }) {
   const supabase = createClient();
+  const toast = useToast();
   const [title, setTitle] = useState("");
   const [department, setDepartment] = useState("");
   const [employmentType, setEmploymentType] = useState("full_time");
@@ -39,6 +41,7 @@ export default function RequisitionDrawer({ open, onClose, onSaved, companyId, p
     setDepartment("");
     setHeadcount(1);
     setJustification("");
+    toast.showSuccess("Requisition submitted.");
     onSaved();
     onClose();
   }

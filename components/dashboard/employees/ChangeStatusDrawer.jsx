@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 const inputClass = "w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none transition-shadow duration-150";
 const focusRing = (e) => (e.target.style.boxShadow = "0 0 0 2px var(--color-accent)");
@@ -13,6 +14,7 @@ const clearRing = (e) => (e.target.style.boxShadow = "none");
 // handover/replacement/outstanding-items detail this form doesn't ask for.
 export default function ChangeStatusDrawer({ open, onClose, onSaved, employee, statuses }) {
   const supabase = createClient();
+  const toast = useToast();
   const nonExitStatuses = statuses.filter((s) => !s.is_exit);
   const statusByName = new Map(statuses.map((s) => [s.name, s]));
 
@@ -95,6 +97,7 @@ export default function ChangeStatusDrawer({ open, onClose, onSaved, employee, s
     }
 
     setSaving(false);
+    toast.showSuccess(`${employee.first_name}'s status updated to ${status}.`);
     onSaved();
     onClose();
   }

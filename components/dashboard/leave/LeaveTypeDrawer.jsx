@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 // 7.3 — leave types are fully company-configurable: add one, rename
 // it, change its default allocation, or take it out of the current
@@ -10,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 // destroying that history).
 export default function LeaveTypeDrawer({ open, onClose, onSaved, companyId, editingType }) {
   const supabase = createClient();
+  const toast = useToast();
   const [name, setName] = useState("");
   const [days, setDays] = useState("20");
   const [saving, setSaving] = useState(false);
@@ -45,17 +47,22 @@ export default function LeaveTypeDrawer({ open, onClose, onSaved, companyId, edi
       return;
     }
 
+    toast.showSuccess(editingType ? "Leave type updated." : "Leave type added.");
     onSaved();
     onClose();
   }
 
   async function handleToggleActive() {
+    const activating = !editingType.is_active;
+    if (!activating && !confirm(`Remove "${editingType.name}" from the current workflow? Employees won't be able to request it anymore.`)) {
+      return;
+    }
     setSaving(true);
     setError(null);
 
     const { error: dbError } = await supabase
       .from("leave_types")
-      .update({ is_active: !editingType.is_active })
+      .update({ is_active: activating })
       .eq("id", editingType.id);
 
     setSaving(false);
@@ -63,6 +70,7 @@ export default function LeaveTypeDrawer({ open, onClose, onSaved, companyId, edi
       setError(dbError.message);
       return;
     }
+    toast.showSuccess(activating ? "Leave type restored." : "Leave type removed from the current workflow.");
     onSaved();
     onClose();
   }

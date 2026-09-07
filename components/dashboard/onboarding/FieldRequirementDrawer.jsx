@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 const inputClass = "w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none transition-shadow duration-150";
 const focusRing = (e) => (e.target.style.boxShadow = "0 0 0 2px var(--color-accent)");
@@ -37,6 +38,7 @@ const FIELD_GROUPS = {
 // underlying UPDATE grant on the table is broader.
 export default function FieldRequirementDrawer({ open, onClose, onSaved, employeeId, fieldGroup, currentValues }) {
   const supabase = createClient();
+  const toast = useToast();
   const config = fieldGroup ? FIELD_GROUPS[fieldGroup] : null;
 
   const [values, setValues] = useState({});
@@ -74,6 +76,7 @@ export default function FieldRequirementDrawer({ open, onClose, onSaved, employe
       return;
     }
 
+    toast.showSuccess("Requirement added.");
     onSaved();
     onClose();
   }

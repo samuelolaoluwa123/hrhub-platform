@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 export default function AllocateBalanceDrawer({ open, onClose, onSaved, companyId, employees, leaveTypes, currentYear }) {
   const supabase = createClient();
+  const toast = useToast();
   const [employeeId, setEmployeeId] = useState(employees[0]?.id ?? "");
   const [leaveTypeId, setLeaveTypeId] = useState(leaveTypes[0]?.id ?? "");
   const [days, setDays] = useState(leaveTypes[0]?.default_days_per_year ?? 20);
@@ -36,6 +38,7 @@ export default function AllocateBalanceDrawer({ open, onClose, onSaved, companyI
       return;
     }
 
+    toast.showSuccess("Leave balance allocated.");
     onSaved();
     onClose();
   }

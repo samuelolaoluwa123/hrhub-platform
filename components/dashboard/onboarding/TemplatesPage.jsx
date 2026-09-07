@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 import { DOC_TYPES, docTypeLabel } from "@/components/dashboard/documents/DocumentsPage";
 
 const FIELD_GROUP_LABEL = {
@@ -20,24 +21,41 @@ function verificationSummary(task) {
 export default function TemplatesPage({ templates, companyId }) {
   const router = useRouter();
   const supabase = createClient();
+  const toast = useToast();
   const [newTemplateOpen, setNewTemplateOpen] = useState(false);
   const [requirementDrawerTemplate, setRequirementDrawerTemplate] = useState(null);
 
   async function handleDeleteTask(taskId) {
-    await supabase.from("onboarding_tasks").delete().eq("id", taskId);
+    if (!confirm("Remove this requirement from the template?")) return;
+    const { error } = await supabase.from("onboarding_tasks").delete().eq("id", taskId);
+    if (error) {
+      toast.showError("Couldn't remove that requirement. Try again.");
+      return;
+    }
+    toast.showSuccess("Requirement removed.");
     router.refresh();
   }
 
   async function handleSetDefault(templateId) {
     // Only one template can be default — clear the others first.
     await supabase.from("onboarding_templates").update({ is_default: false }).neq("id", templateId);
-    await supabase.from("onboarding_templates").update({ is_default: true }).eq("id", templateId);
+    const { error } = await supabase.from("onboarding_templates").update({ is_default: true }).eq("id", templateId);
+    if (error) {
+      toast.showError("Couldn't set that template as default. Try again.");
+      return;
+    }
+    toast.showSuccess("Default template updated.");
     router.refresh();
   }
 
   async function handleDeleteTemplate(templateId) {
     if (!confirm("Delete this template and all its requirements? This can't be undone.")) return;
-    await supabase.from("onboarding_templates").delete().eq("id", templateId);
+    const { error } = await supabase.from("onboarding_templates").delete().eq("id", templateId);
+    if (error) {
+      toast.showError("Couldn't delete that template. Try again.");
+      return;
+    }
+    toast.showSuccess("Template deleted.");
     router.refresh();
   }
 
@@ -182,6 +200,7 @@ export default function TemplatesPage({ templates, companyId }) {
 
 function NewTemplateDrawer({ companyId, onClose, onSaved }) {
   const supabase = createClient();
+  const toast = useToast();
   const [name, setName] = useState("");
   const [isDefault, setIsDefault] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -207,6 +226,7 @@ function NewTemplateDrawer({ companyId, onClose, onSaved }) {
       return;
     }
 
+    toast.showSuccess("Template created.");
     onSaved();
     onClose();
   }
@@ -230,7 +250,7 @@ function NewTemplateDrawer({ companyId, onClose, onSaved }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Engineering"
-              className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none"
+              className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
             />
           </div>
 
@@ -282,6 +302,7 @@ const FIELD_GROUP_OPTIONS = [
 
 function NewRequirementDrawer({ open, template, companyId, onClose, onSaved }) {
   const supabase = createClient();
+  const toast = useToast();
   const [title, setTitle] = useState("");
   const [isRequired, setIsRequired] = useState(true);
   const [verificationType, setVerificationType] = useState("document");
@@ -321,11 +342,12 @@ function NewRequirementDrawer({ open, template, companyId, onClose, onSaved }) {
     setTitle("");
     setIsRequired(true);
     setVerificationType("document");
+    toast.showSuccess("Requirement added.");
     onSaved();
     onClose();
   }
 
-  const inputClass = "w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none";
+  const inputClass = "w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--color-accent)]";
 
   return (
     <div className="fixed inset-0 z-50">

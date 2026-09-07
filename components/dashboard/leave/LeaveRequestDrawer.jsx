@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 import { sendNotificationEmail } from "@/lib/sendNotificationEmail";
 
 function daysBetween(start, end) {
@@ -18,6 +19,7 @@ function daysBetween(start, end) {
 // not the actual gate, so it can't be bypassed by a stale prop.
 export default function LeaveRequestDrawer({ open, onClose, onSaved, leaveTypes, employeeId, companyId, myBalances, pendingByEmployeeAndType }) {
   const supabase = createClient();
+  const toast = useToast();
   const [leaveTypeId, setLeaveTypeId] = useState(leaveTypes[0]?.id ?? "");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -102,6 +104,7 @@ export default function LeaveRequestDrawer({ open, onClose, onSaved, leaveTypes,
     setStartDate("");
     setEndDate("");
     setReason("");
+    toast.showSuccess("Leave request submitted.");
     onSaved();
     onClose();
   }

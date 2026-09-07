@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 const CYCLE_TYPES = [
   { id: "monthly", label: "Monthly" },
@@ -21,6 +22,7 @@ const EMPTY_FORM = { job_title: "", cycle_type: "monthly", kpi_name: "", target_
 // that type opens for them.
 export default function KpiTemplateDrawer({ open, onClose, onSaved, companyId, profileId, editingTemplate, jobTitleSuggestions }) {
   const supabase = createClient();
+  const toast = useToast();
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -71,6 +73,7 @@ export default function KpiTemplateDrawer({ open, onClose, onSaved, companyId, p
       return;
     }
 
+    toast.showSuccess("KPI added to the template.");
     onSaved();
     onClose();
   }

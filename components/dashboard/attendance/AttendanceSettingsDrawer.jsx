@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 // 6.1's auto-'late' detection and 6.2's "does the network match a
 // known office" flagging are both driven from here — this is the
@@ -10,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 // baked into the code.
 export default function AttendanceSettingsDrawer({ open, onClose, onSaved, companyId, company, trustedNetworks, profileId }) {
   const supabase = createClient();
+  const toast = useToast();
   const [startTime, setStartTime] = useState(company?.standard_start_time?.slice(0, 5) ?? "");
   const [graceMinutes, setGraceMinutes] = useState(company?.late_grace_minutes ?? 15);
   const [savingPolicy, setSavingPolicy] = useState(false);
@@ -44,6 +46,7 @@ export default function AttendanceSettingsDrawer({ open, onClose, onSaved, compa
 
     setSavingPolicy(false);
     if (dbError) { setError(dbError.message); return; }
+    toast.showSuccess("Attendance policy updated.");
     onSaved();
   }
 
@@ -64,13 +67,20 @@ export default function AttendanceSettingsDrawer({ open, onClose, onSaved, compa
     if (dbError) { setError(dbError.message); return; }
     setLabel("");
     setIpPrefix("");
+    toast.showSuccess("Trusted network added.");
     onSaved();
   }
 
   async function handleRemoveNetwork(id) {
+    if (!confirm("Remove this trusted network? Clock-ins from it will start getting flagged again.")) return;
     setRemovingId(id);
-    await supabase.from("attendance_trusted_networks").delete().eq("id", id);
+    const { error } = await supabase.from("attendance_trusted_networks").delete().eq("id", id);
     setRemovingId(null);
+    if (error) {
+      toast.showError("Couldn't remove that network. Try again.");
+      return;
+    }
+    toast.showSuccess("Trusted network removed.");
     onSaved();
   }
 

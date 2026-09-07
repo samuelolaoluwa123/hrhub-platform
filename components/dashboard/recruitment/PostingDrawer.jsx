@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 export default function PostingDrawer({ open, onClose, onSaved, companyId, profileId, requisitions }) {
   const supabase = createClient();
+  const toast = useToast();
   const [requisitionId, setRequisitionId] = useState(requisitions[0]?.id ?? "");
   const [title, setTitle] = useState(requisitions[0]?.title ?? "");
   const [location, setLocation] = useState("");
@@ -48,6 +50,7 @@ export default function PostingDrawer({ open, onClose, onSaved, companyId, profi
     setLocation("");
     setDescription("");
     setRequirements("");
+    toast.showSuccess("Job posting published.");
     onSaved();
     onClose();
   }

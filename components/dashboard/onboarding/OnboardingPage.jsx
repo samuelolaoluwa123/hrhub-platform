@@ -134,7 +134,7 @@ export default function OnboardingPage({
                             <select
                               defaultValue=""
                               onChange={(e) => handleManualAssign(emp.id, e.target.value)}
-                              className="text-xs border border-black/10 rounded-md px-2 py-1.5 outline-none text-[var(--color-text-muted)]"
+                              className="text-xs border border-black/10 rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-[var(--color-accent)] text-[var(--color-text-muted)]"
                             >
                               <option value="" disabled>
                                 {p.total === 0 ? "Assign a template..." : "Add requirements..."}

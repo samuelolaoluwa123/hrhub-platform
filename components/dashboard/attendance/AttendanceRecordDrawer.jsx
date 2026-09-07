@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 const STATUS_OPTIONS = [
   { id: "present", label: "Present" },
@@ -21,6 +22,7 @@ function formatDateTime(value) {
 // Present checkmark.
 export default function AttendanceRecordDrawer({ open, onClose, onSaved, record, profileId }) {
   const supabase = createClient();
+  const toast = useToast();
   const [status, setStatus] = useState(record?.status ?? "present");
   const [note, setNote] = useState(record?.verification_note ?? "");
   const [saving, setSaving] = useState(false);
@@ -55,6 +57,7 @@ export default function AttendanceRecordDrawer({ open, onClose, onSaved, record,
 
     setSaving(false);
     if (dbError) { setError(dbError.message); return; }
+    toast.showSuccess("Attendance record reviewed.");
     onSaved();
     onClose();
   }

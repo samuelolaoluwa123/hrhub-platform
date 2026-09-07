@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 const CYCLE_TYPES = [
   { id: "monthly", label: "Monthly" },
@@ -14,6 +15,7 @@ const CYCLE_TYPES = [
 
 export default function CycleDrawer({ open, onClose, onSaved, companyId, profileId }) {
   const supabase = createClient();
+  const toast = useToast();
   const [name, setName] = useState("");
   const [cycleType, setCycleType] = useState("quarterly");
   const [startDate, setStartDate] = useState("");
@@ -47,6 +49,7 @@ export default function CycleDrawer({ open, onClose, onSaved, companyId, profile
     setCycleType("quarterly");
     setStartDate("");
     setEndDate("");
+    toast.showSuccess("Review cycle created.");
     onSaved();
     onClose();
   }

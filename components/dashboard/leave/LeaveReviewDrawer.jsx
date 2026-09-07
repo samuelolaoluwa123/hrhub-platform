@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 import { sendNotificationEmail } from "@/lib/sendNotificationEmail";
 
 function formatRange(start, end) {
@@ -19,6 +20,7 @@ function formatDate(value) {
 // itself — separate from the employee's own reason for asking.
 export default function LeaveReviewDrawer({ open, onClose, onSaved, request, profileId }) {
   const supabase = createClient();
+  const toast = useToast();
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(null); // "approved" | "rejected" | null
   const [error, setError] = useState(null);
@@ -73,6 +75,7 @@ export default function LeaveReviewDrawer({ open, onClose, onSaved, request, pro
     }
 
     setSaving(null);
+    toast.showSuccess(`Leave request ${status}.`);
     onSaved();
     onClose();
   }

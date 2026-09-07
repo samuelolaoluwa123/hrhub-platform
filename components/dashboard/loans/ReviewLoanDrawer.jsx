@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 const TYPE_LABEL = { advance: "Salary advance", loan: "Staff loan" };
 
@@ -11,6 +12,7 @@ function naira(n) {
 
 export default function ReviewLoanDrawer({ open, onClose, onSaved, loan, profileId }) {
   const supabase = createClient();
+  const toast = useToast();
   const [repaymentMonths, setRepaymentMonths] = useState(loan.repayment_months);
   const [saving, setSaving] = useState(null); // "approve" | "reject" | null
   const [error, setError] = useState(null);
@@ -40,6 +42,7 @@ export default function ReviewLoanDrawer({ open, onClose, onSaved, loan, profile
       return;
     }
 
+    toast.showSuccess(`Loan request ${status}.`);
     onSaved();
     onClose();
   }

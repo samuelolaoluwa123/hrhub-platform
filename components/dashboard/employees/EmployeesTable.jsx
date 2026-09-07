@@ -133,7 +133,7 @@ export default function EmployeesTable({ initialEmployees, statuses, canManage, 
       )}
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <div className="flex items-center gap-2 bg-white border border-black/[0.08] rounded-lg px-3 py-2 text-sm text-[var(--color-text-muted)] max-w-[260px] flex-1 min-w-[180px]">
+        <div className="flex items-center gap-2 bg-white border border-black/[0.08] rounded-lg px-3 py-2 text-sm text-[var(--color-text-muted)] max-w-[260px] flex-1 min-w-[180px] focus-within:ring-2 focus-within:ring-[var(--color-accent)]">
           <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8" />
             <path d="M21 21l-4.3-4.3" />
@@ -148,7 +148,7 @@ export default function EmployeesTable({ initialEmployees, statuses, canManage, 
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="text-xs font-medium px-3 py-2.5 rounded-lg border border-black/[0.08] bg-white text-[var(--color-text-primary)] outline-none"
+          className="text-xs font-medium px-3 py-2.5 rounded-lg border border-black/[0.08] bg-white text-[var(--color-text-primary)] outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
         >
           <option value="all">All statuses</option>
           {statuses.map((s) => (

@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 export default function RequestLoanDrawer({ open, onClose, onSaved, employeeId, companyId }) {
   const supabase = createClient();
+  const toast = useToast();
   const [loanType, setLoanType] = useState("advance");
   const [amount, setAmount] = useState("");
   const [repaymentMonths, setRepaymentMonths] = useState(1);
@@ -37,6 +39,7 @@ export default function RequestLoanDrawer({ open, onClose, onSaved, employeeId, 
     setAmount("");
     setReason("");
     setRepaymentMonths(1);
+    toast.showSuccess("Loan request submitted.");
     onSaved();
     onClose();
   }

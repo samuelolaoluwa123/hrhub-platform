@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 function formatTarget(kpi) {
   if (kpi.target_value == null) return "No target set";
@@ -11,6 +12,7 @@ function formatTarget(kpi) {
 
 export default function SelfAssessmentDrawer({ open, onClose, onSaved, cycle, review, employeeId, companyId }) {
   const supabase = createClient();
+  const toast = useToast();
   const [text, setText] = useState(review?.self_assessment ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -88,6 +90,7 @@ export default function SelfAssessmentDrawer({ open, onClose, onSaved, cycle, re
     await Promise.all(kpiUpdates);
 
     setSaving(false);
+    toast.showSuccess("Self-assessment submitted.");
     onSaved();
     onClose();
   }

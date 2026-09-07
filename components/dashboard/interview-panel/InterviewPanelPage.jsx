@@ -224,7 +224,7 @@ function EvaluationDrawer({ panel, companyId, profileId, onClose, onSaved }) {
             <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Comments</label>
             <textarea
               value={comments} onChange={(e) => setComments(e.target.value)} rows={3}
-              className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none"
+              className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
               placeholder="What stood out, positively or not"
             />
           </div>

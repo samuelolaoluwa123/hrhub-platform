@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 import { downloadPayslipPdf } from "@/lib/generatePayslipPdf";
 import { sumAllowances } from "@/lib/calculatePayroll";
 import SalaryStructureDrawer from "./SalaryStructureDrawer";
@@ -39,6 +40,7 @@ export default function PayrollPage({
 }) {
   const router = useRouter();
   const supabase = createClient();
+  const toast = useToast();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -73,6 +75,7 @@ export default function PayrollPage({
       return;
     }
 
+    toast.showSuccess("Payroll run created.");
     setDrawerOpen(false);
     router.refresh();
   }
@@ -291,7 +294,7 @@ export default function PayrollPage({
                   <select
                     value={month}
                     onChange={(e) => setMonth(e.target.value)}
-                    className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none"
+                    className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
                   >
                     {MONTH_NAMES.map((m, idx) => (
                       <option key={m} value={idx + 1}>{m}</option>
@@ -304,7 +307,7 @@ export default function PayrollPage({
                     type="number"
                     value={year}
                     onChange={(e) => setYear(e.target.value)}
-                    className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none"
+                    className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
                   />
                 </div>
               </div>
@@ -395,6 +398,7 @@ function EmptyRow({ text }) {
 // the only way to actually set them, since nothing seeds them.
 function CompanyDetailsDrawer({ companyId, companyName, companyAddress, companyRcNumber, onClose, onSaved }) {
   const supabase = createClient();
+  const toast = useToast();
   const [address, setAddress] = useState(companyAddress ?? "");
   const [rcNumber, setRcNumber] = useState(companyRcNumber ?? "");
   const [saving, setSaving] = useState(false);
@@ -415,11 +419,12 @@ function CompanyDetailsDrawer({ companyId, companyName, companyAddress, companyR
       setError(dbError.message);
       return;
     }
+    toast.showSuccess("Company details updated.");
     onSaved();
     onClose();
   }
 
-  const inputClass = "w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none";
+  const inputClass = "w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--color-accent)]";
 
   return (
     <div className="fixed inset-0 z-50">

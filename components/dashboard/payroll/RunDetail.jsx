@@ -362,7 +362,7 @@ function AddPayslipDrawer({ employee, run, companyId, onClose, onSaved }) {
     onSaved();
   }
 
-  const inputClass = "w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none";
+  const inputClass = "w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--color-accent)]";
 
   return (
     <div className="fixed inset-0 z-50">
@@ -509,7 +509,7 @@ function PayslipAdjustDrawer({ employee, companyId, profileId, onClose, onSaved 
     onSaved();
   }
 
-  const inputClass = "w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none";
+  const inputClass = "w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--color-accent)]";
 
   return (
     <div className="fixed inset-0 z-50">

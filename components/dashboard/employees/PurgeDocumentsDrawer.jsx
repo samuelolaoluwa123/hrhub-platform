@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 const inputClass = "w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none transition-shadow duration-150";
 const focusRing = (e) => (e.target.style.boxShadow = "0 0 0 2px var(--color-accent)");
@@ -13,6 +14,7 @@ const clearRing = (e) => (e.target.style.boxShadow = "none");
 // (confirmed with a privacy professional, not guessed by HRhub) says
 // it's time.
 export default function PurgeDocumentsDrawer({ open, onClose, onPurged, employee }) {
+  const toast = useToast();
   const [reason, setReason] = useState("");
   const [confirmText, setConfirmText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -47,6 +49,7 @@ export default function PurgeDocumentsDrawer({ open, onClose, onPurged, employee
         setSaving(false);
         return;
       }
+      toast.showSuccess(`Documents purged for ${employee.first_name} ${employee.last_name}.`);
       onPurged(data.purgedCount ?? 0);
       onClose();
     } catch {

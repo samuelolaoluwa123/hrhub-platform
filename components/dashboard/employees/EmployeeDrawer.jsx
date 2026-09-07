@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 const EMPLOYMENT_LEVELS = [
   { id: "entry", label: "Entry" },
@@ -34,6 +35,7 @@ const EMPTY_FORM = {
 
 export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee, companyId, employees, isAdmin, currentProfileId }) {
   const supabase = createClient();
+  const toast = useToast();
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -138,6 +140,7 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
       return;
     }
 
+    toast.showSuccess(editingEmployee ? "Employee updated successfully." : "Employee created successfully.");
     onSaved();
     onClose();
   }

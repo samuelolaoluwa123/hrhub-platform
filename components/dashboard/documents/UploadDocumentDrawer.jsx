@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 import { DOC_TYPES, docTypeLabel } from "./DocumentsPage";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB
@@ -22,6 +23,7 @@ export default function UploadDocumentDrawer({
   lockedDocType,
 }) {
   const supabase = createClient();
+  const toast = useToast();
   const [targetEmployeeId, setTargetEmployeeId] = useState(employeeId || employees[0]?.id || "");
   const [docType, setDocType] = useState(lockedDocType || DOC_TYPES[0].id);
   const [file, setFile] = useState(null);
@@ -108,6 +110,7 @@ export default function UploadDocumentDrawer({
     setSaving(false);
     setFile(null);
     setDocType(DOC_TYPES[0].id);
+    toast.showSuccess("Document uploaded.");
     onSaved();
     onClose();
   }

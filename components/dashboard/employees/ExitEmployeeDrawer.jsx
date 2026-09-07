@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 
 const inputClass = "w-full border border-black/10 rounded-lg px-3 py-2 text-sm outline-none transition-shadow duration-150";
 const focusRing = (e) => (e.target.style.boxShadow = "0 0 0 2px var(--color-accent)");
@@ -14,6 +15,7 @@ const clearRing = (e) => (e.target.style.boxShadow = "none");
 // outstanding-items on top of just "what status did they end up in."
 export default function ExitEmployeeDrawer({ open, onClose, onSaved, employee, statuses, employees }) {
   const supabase = createClient();
+  const toast = useToast();
   const exitStatuses = statuses.filter((s) => s.is_exit);
 
   const [exitStatus, setExitStatus] = useState(exitStatuses[0]?.name ?? "");
@@ -88,6 +90,7 @@ export default function ExitEmployeeDrawer({ open, onClose, onSaved, employee, s
       console.error("Failed to revoke portal access after exit:", revokeErr);
     }
 
+    toast.showSuccess(`${employee.first_name} ${employee.last_name}'s exit has been recorded.`);
     onSaved();
     onClose();
   }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 import { sendNotificationEmail } from "@/lib/sendNotificationEmail";
 
 function formatTarget(kpi) {
@@ -21,6 +22,7 @@ function suggestedAchievement(kpi) {
 
 export default function ManagerReviewDrawer({ open, onClose, onSaved, cycleId, employee, review, companyId }) {
   const supabase = createClient();
+  const toast = useToast();
   const [feedback, setFeedback] = useState(review?.manager_feedback ?? "");
   const [rating, setRating] = useState(review?.rating ?? 3);
   const [saving, setSaving] = useState(false);
@@ -122,6 +124,7 @@ export default function ManagerReviewDrawer({ open, onClose, onSaved, cycleId, e
     }
 
     setSaving(false);
+    toast.showSuccess("Review saved.");
     onSaved();
     onClose();
   }
