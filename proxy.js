@@ -56,9 +56,36 @@ export async function proxy(request) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getUser() makes a real network call out to Supabase's auth server
+  // (deliberately — it revalidates server-side rather than trusting a
+  // locally-decoded JWT). If that call fails for a transient reason
+  // (a dropped connection, a momentary blip — not a real "this session
+  // is invalid" rejection), the SDK surfaces it as an
+  // AuthRetryableFetchError, distinct from a genuine auth rejection.
+  // Before this, that distinction was thrown away — any error at all
+  // meant `user` came back null and got treated identically to "not
+  // logged in," bouncing someone with a perfectly valid session to
+  // /login. Caught live: a session died mid-testing with 50+ minutes
+  // left on its actual token, and the failing request's auth-check step
+  // took ~17ms against a normal 400-1200ms — too fast to have been a
+  // real check, consistent with an immediate network-level failure.
+  //
+  // One bounded retry after a short pause resolves a single transient
+  // blip without adding latency to the normal case (this path only
+  // runs when the first attempt already failed) and without ever
+  // failing open — a real rejection is never retryable, and two
+  // failures in a row still correctly requires signing in again rather
+  // than guessing.
+  async function getUserResilient() {
+    let { data, error } = await supabase.auth.getUser();
+    if (error?.name === "AuthRetryableFetchError") {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      ({ data, error } = await supabase.auth.getUser());
+    }
+    return data?.user ?? null;
+  }
+
+  const user = await getUserResilient();
 
   const path = request.nextUrl.pathname;
   const needsAuth = PROTECTED_PREFIXES.some((p) => path.startsWith(p));
