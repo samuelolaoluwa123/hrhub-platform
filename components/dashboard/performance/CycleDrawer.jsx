@@ -25,6 +25,7 @@ export default function CycleDrawer({ open, onClose, onSaved, companyId, profile
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 

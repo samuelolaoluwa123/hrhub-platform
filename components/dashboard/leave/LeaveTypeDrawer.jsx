@@ -31,6 +31,7 @@ export default function LeaveTypeDrawer({ open, onClose, onSaved, companyId, edi
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 
@@ -53,6 +54,7 @@ export default function LeaveTypeDrawer({ open, onClose, onSaved, companyId, edi
   }
 
   async function handleToggleActive() {
+    if (saving) return;
     const activating = !editingType.is_active;
     if (!activating && !confirm(`Remove "${editingType.name}" from the current workflow? Employees won't be able to request it anymore.`)) {
       return;

@@ -23,6 +23,7 @@ export default function PostingDrawer({ open, onClose, onSaved, companyId, profi
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 

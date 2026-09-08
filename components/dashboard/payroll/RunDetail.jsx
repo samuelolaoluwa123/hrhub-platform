@@ -259,6 +259,7 @@ function AddPayslipDrawer({ employee, run, companyId, onClose, onSaved }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 
@@ -299,7 +300,16 @@ function AddPayslipDrawer({ employee, run, companyId, onClose, onSaved }) {
 
     if (dbError) {
       setSaving(false);
-      setError(dbError.message);
+      // Phase 16 — payslips already had a real UNIQUE(employee_id,
+      // payroll_run_id) constraint (so a double-submit here was always
+      // safely rejected, not duplicated) but surfaced as a raw
+      // constraint-violation string. Translated the same way Phase 15
+      // did for the equivalent duplicate-employee case.
+      setError(
+        dbError.code === "23505"
+          ? `${employee.first_name} ${employee.last_name} already has a payslip for this run.`
+          : dbError.message
+      );
       return;
     }
 
@@ -487,6 +497,7 @@ function PayslipAdjustDrawer({ employee, companyId, profileId, onClose, onSaved 
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     if (!reason.trim()) {
       setError("A reason is required to record a correction.");
       return;

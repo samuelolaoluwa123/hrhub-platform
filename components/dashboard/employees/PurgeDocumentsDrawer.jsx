@@ -33,7 +33,7 @@ export default function PurgeDocumentsDrawer({ open, onClose, onPurged, employee
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!confirmed) return;
+    if (saving || !confirmed) return;
     setSaving(true);
     setError(null);
 

@@ -16,6 +16,7 @@ export default function RequestLoanDrawer({ open, onClose, onSaved, employeeId, 
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 

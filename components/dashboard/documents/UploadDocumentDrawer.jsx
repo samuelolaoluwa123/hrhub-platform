@@ -54,6 +54,7 @@ export default function UploadDocumentDrawer({
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
 
     if (!file) {
       setError("Choose a file to upload.");

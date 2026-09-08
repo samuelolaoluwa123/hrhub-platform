@@ -36,6 +36,7 @@ export default function AttendanceSettingsDrawer({ open, onClose, onSaved, compa
 
   async function handleSavePolicy(e) {
     e.preventDefault();
+    if (savingPolicy) return;
     setSavingPolicy(true);
     setError(null);
 
@@ -52,7 +53,7 @@ export default function AttendanceSettingsDrawer({ open, onClose, onSaved, compa
 
   async function handleAddNetwork(e) {
     e.preventDefault();
-    if (!label.trim() || !ipPrefix.trim()) return;
+    if (addingNetwork || !label.trim() || !ipPrefix.trim()) return;
     setAddingNetwork(true);
     setError(null);
 

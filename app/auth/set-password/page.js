@@ -14,6 +14,7 @@ export default function SetPasswordPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (loading) return;
     setError(null);
 
     if (password.length < 8) {

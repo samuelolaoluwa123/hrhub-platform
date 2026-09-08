@@ -40,6 +40,7 @@ export default function LeaveRequestDrawer({ open, onClose, onSaved, leaveTypes,
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
 
     if (days === null) {
       setError("End date must be on or after the start date.");

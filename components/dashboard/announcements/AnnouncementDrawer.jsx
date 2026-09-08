@@ -55,6 +55,7 @@ export default function AnnouncementDrawer({ open, onClose, onSaved, companyId, 
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 

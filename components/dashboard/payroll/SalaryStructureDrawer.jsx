@@ -39,6 +39,7 @@ export default function SalaryStructureDrawer({ open, onClose, onSaved, employee
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 

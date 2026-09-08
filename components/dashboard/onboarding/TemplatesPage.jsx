@@ -208,6 +208,7 @@ function NewTemplateDrawer({ companyId, onClose, onSaved }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 
@@ -315,6 +316,7 @@ function NewRequirementDrawer({ open, template, companyId, onClose, onSaved }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     if (!title.trim()) return;
     setSaving(true);
     setError(null);

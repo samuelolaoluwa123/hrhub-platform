@@ -71,6 +71,7 @@ export default function AttendancePage({
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   async function handleClockIn() {
+    if (saving) return;
     setSaving(true);
     setError(null);
 
@@ -93,6 +94,7 @@ export default function AttendancePage({
   }
 
   async function handleClockOut() {
+    if (saving) return;
     setSaving(true);
     setError(null);
 

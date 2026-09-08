@@ -50,6 +50,7 @@ export default function KpiTemplateDrawer({ open, onClose, onSaved, companyId, p
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 

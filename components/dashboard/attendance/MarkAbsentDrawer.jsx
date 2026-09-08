@@ -27,6 +27,7 @@ export default function MarkAbsentDrawer({ open, onClose, onSaved, companyId, em
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 

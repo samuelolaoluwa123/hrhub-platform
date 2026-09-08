@@ -60,6 +60,7 @@ export default function ApplicationDrawer({ open, onClose, onSaved, application:
   }
 
   async function handleSaveMain() {
+    if (savingMain || hiring) return;
     // 4.8 — "Hired" isn't a label change. It runs the hire_candidate()
     // RPC (admin/manager only, enforced server-side) which atomically
     // creates the real employee record, assigns onboarding, and links
@@ -90,6 +91,7 @@ export default function ApplicationDrawer({ open, onClose, onSaved, application:
 
   async function handleScheduleInterview(e) {
     e.preventDefault();
+    if (savingInterview) return;
     setSavingInterview(true);
     setError(null);
 
@@ -166,6 +168,7 @@ export default function ApplicationDrawer({ open, onClose, onSaved, application:
   }
 
   async function handleSaveOffer() {
+    if (savingOffer) return;
     setSavingOffer(true);
     setError(null);
     const { error: dbError } = await supabase
@@ -185,6 +188,7 @@ export default function ApplicationDrawer({ open, onClose, onSaved, application:
 
   async function handleSendMessage(e) {
     e.preventDefault();
+    if (sendingMessage) return;
     setSendingMessage(true);
     setError(null);
     await sendNotificationEmail({ to: candidate.email, subject: messageSubject, message: messageBody });
@@ -409,8 +413,17 @@ function InterviewRow({ interview }) {
           <span className="text-[10.5px] text-[var(--color-text-muted)]">No panel assigned</span>
         ) : (
           panelists.map((p) => (
-            <span key={p.id} className="text-[10.5px] font-medium px-2 py-0.5 rounded-md bg-[var(--color-violet-tint)] text-[var(--color-primary)]">
+            <span
+              key={p.id}
+              className={`text-[10.5px] font-medium px-2 py-0.5 rounded-md ${
+                p.panelist?.exited
+                  ? "bg-[#f3f2f5] text-[#706f83]"
+                  : "bg-[var(--color-violet-tint)] text-[var(--color-primary)]"
+              }`}
+              title={p.panelist?.exited ? "No longer with the company — can't submit a scorecard" : undefined}
+            >
               {p.panelist?.full_name ?? "—"}
+              {p.panelist?.exited ? " · left" : ""}
             </span>
           ))
         )}

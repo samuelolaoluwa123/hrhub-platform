@@ -40,26 +40,60 @@ export default async function PostingDetailRoute({ params }) {
   // just need a login. get_my_interview_panels() + the RLS on
   // interview_evaluations are what actually keep their access scoped
   // once picked, not this list.
-  const [{ data: applications }, { data: panelCandidates }] = await Promise.all([
+  //
+  // Phase 16 — "interview panel member removed after assignment": an
+  // exited employee's profile row is never deleted (only their login
+  // is banned, per Phase 13), so without this the picker would happily
+  // let HR assign someone who can no longer log in to ever submit a
+  // scorecard — a silent dead end. Each profile's linked employee
+  // status (if any) is embedded so both the picker and already-scheduled
+  // interviews below can tell.
+  const [{ data: applications }, { data: panelCandidates }, { data: exitStatuses }] = await Promise.all([
     supabase
       .from("applications")
       .select(
         `id, status, score, notes, offered_salary, offer_sent_at, offer_status, applied_at, hired_employee_id,
          candidates(id, first_name, last_name, email, phone, resume_path, source),
          interviews(id, scheduled_at, mode, duration_minutes, location, notes, status,
-           interview_panelists(id, profile_id, panelist:profile_id(full_name)),
+           interview_panelists(id, profile_id, panelist:profile_id(full_name, employees!employees_profile_id_fkey(status))),
            interview_evaluations(id, technical_score, communication_score, problem_solving_score, experience_score, culture_fit_score, recommendation, comments, submitted_at, evaluator:evaluator_id(full_name)))`
       )
       .eq("job_posting_id", postingId)
       .order("applied_at", { ascending: false }),
-    supabase.from("profiles").select("id, full_name, role, email").eq("company_id", profile?.company_id).order("full_name"),
+    supabase
+      .from("profiles")
+      .select("id, full_name, role, email, employees!employees_profile_id_fkey(status)")
+      .eq("company_id", profile?.company_id)
+      .order("full_name"),
+    supabase.from("employee_statuses").select("name").eq("company_id", profile?.company_id).eq("is_exit", true),
   ]);
+
+  const exitStatusNames = new Set((exitStatuses ?? []).map((s) => s.name));
+  const isExited = (employeesEmbed) => (employeesEmbed ?? []).some((e) => exitStatusNames.has(e.status));
+
+  // Only exclude someone with an actual exited employee record — a
+  // profile with no employee row at all (an admin-only login, per the
+  // comment above) is still a legitimate panelist and stays included.
+  const activePanelCandidates = (panelCandidates ?? []).filter((p) => !isExited(p.employees));
+
+  // Tag (not hide) already-scheduled panelists who've since exited, so
+  // an interview that already happened still shows who sat on it.
+  const applicationsWithPanelistFlags = (applications ?? []).map((app) => ({
+    ...app,
+    interviews: (app.interviews ?? []).map((iv) => ({
+      ...iv,
+      interview_panelists: (iv.interview_panelists ?? []).map((p) => ({
+        ...p,
+        panelist: p.panelist ? { ...p.panelist, exited: isExited(p.panelist.employees) } : p.panelist,
+      })),
+    })),
+  }));
 
   return (
     <PostingDetail
       posting={posting}
-      applications={applications ?? []}
-      panelCandidates={panelCandidates ?? []}
+      applications={applicationsWithPanelistFlags}
+      panelCandidates={activePanelCandidates}
       companyId={profile?.company_id}
       profileId={user.id}
     />

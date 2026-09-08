@@ -43,6 +43,7 @@ export default function AttendanceRecordDrawer({ open, onClose, onSaved, record,
   }, [open, record?.id]);
 
   async function handleSave(markVerified) {
+    if (saving) return;
     setSaving(true);
     setError(null);
 

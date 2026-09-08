@@ -82,6 +82,7 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 
@@ -124,15 +125,32 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
     // deliberately don't touch company_id — an edit should never be
     // able to move a record to a different tenant.
     let dbError;
+    let conflict = false;
 
     if (editingEmployee) {
-      ({ error: dbError } = await supabase.from("employees").update(payload).eq("id", editingEmployee.id));
+      // Phase 16 — "two admins edit the same employee at once": without
+      // this, whoever saves second silently overwrites whoever saved
+      // first with no warning at all. The row's own updated_at (bumped
+      // by a DB trigger on every update, so it can't be spoofed by a
+      // stale client) is captured when the drawer opened; the update
+      // only applies if it still matches. If someone else's save has
+      // already moved it, zero rows match — not an error, just nothing
+      // written — and that's the signal to tell the admin their changes
+      // weren't saved rather than let them believe they were.
+      const { data: updated, error: updateError } = await supabase
+        .from("employees")
+        .update(payload)
+        .eq("id", editingEmployee.id)
+        .eq("updated_at", editingEmployee.updated_at)
+        .select("id");
+      dbError = updateError;
+      if (!updateError && updated?.length === 0) conflict = true;
 
       // Access level lives on profiles, not employees — a separate write,
       // and only attempted if this drawer actually offered the control
       // and the value changed (avoids a no-op update tripping the
       // last-admin trigger on an unrelated field change).
-      if (!dbError && canEditAccessLevel && access_level !== (editingEmployee.profiles?.role ?? "employee")) {
+      if (!dbError && !conflict && canEditAccessLevel && access_level !== (editingEmployee.profiles?.role ?? "employee")) {
         const { error: roleError } = await supabase
           .from("profiles")
           .update({ role: access_level })
@@ -153,6 +171,13 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
     }
 
     setSaving(false);
+
+    if (conflict) {
+      setError(
+        "Someone else updated this employee's record while you had it open, so your changes weren't saved. Close this, reopen it to see the latest version, and re-enter your changes."
+      );
+      return;
+    }
 
     if (dbError) {
       // Phase 15 — employees_company_email_unique (added because a

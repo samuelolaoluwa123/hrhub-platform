@@ -15,6 +15,7 @@ export default function GoalDrawer({ open, onClose, onSaved, employeeId, company
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 

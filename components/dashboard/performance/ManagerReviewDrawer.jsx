@@ -67,6 +67,7 @@ export default function ManagerReviewDrawer({ open, onClose, onSaved, cycleId, e
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 

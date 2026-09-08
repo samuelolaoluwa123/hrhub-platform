@@ -59,6 +59,7 @@ export default function FieldRequirementDrawer({ open, onClose, onSaved, employe
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 

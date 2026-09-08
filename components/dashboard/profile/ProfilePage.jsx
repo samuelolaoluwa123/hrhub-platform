@@ -60,6 +60,7 @@ export default function ProfilePage({ profile, employee }) {
 
   async function handleSave(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 

@@ -37,6 +37,7 @@ export default function AddCandidateDrawer({ open, onClose, onSaved, companyId, 
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
 
     // Validated before creating anything — catching a bad resume after
     // the candidate row already exists would mean either a confusing
@@ -55,50 +56,50 @@ export default function AddCandidateDrawer({ open, onClose, onSaved, companyId, 
     setSaving(true);
     setError(null);
 
-    const { data: candidate, error: candidateError } = await supabase
-      .from("candidates")
-      .insert({
-        company_id: companyId,
-        first_name: firstName,
-        last_name: lastName,
-        email,
-        phone: phone || null,
-        source,
-      })
-      .select("id")
-      .single();
+    // Phase 16 — "user refreshes during a transaction": this used to be
+    // two separate inserts (candidate, then application). A refresh or
+    // dropped connection between them left a real candidate row with no
+    // application — invisible in the pipeline (which lists by
+    // application), only findable by going straight to the table. Both
+    // writes now happen together, server-side, in one RPC — either the
+    // candidate is fully in the pipeline or nothing was created.
+    const { data: candidateId, error: candidateError } = await supabase.rpc("add_candidate_to_posting", {
+      p_first_name: firstName,
+      p_last_name: lastName,
+      p_email: email,
+      p_phone: phone || null,
+      p_source: source,
+      p_job_posting_id: postingId,
+    });
 
     if (candidateError) {
       setSaving(false);
-      setError(candidateError.message);
+      setError(
+        candidateError.code === "23505"
+          ? "A candidate with this email has already applied to this posting."
+          : candidateError.message
+      );
       return;
     }
 
-    let resumePath = null;
+    // Resume upload stays a separate step after the candidate/application
+    // already exist — storage isn't part of the Postgres transaction
+    // above anyway, and this matches the same "record already saved,
+    // upload can fail independently without losing anything" pattern
+    // UploadDocumentDrawer already uses.
     if (resume) {
       const safeName = resume.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-      resumePath = `${companyId}/${candidate.id}/${Date.now()}-${safeName}`;
+      const resumePath = `${companyId}/${candidateId}/${Date.now()}-${safeName}`;
       const { error: uploadError } = await supabase.storage.from("candidate-resumes").upload(resumePath, resume);
       if (uploadError) {
         setSaving(false);
-        setError(uploadError.message);
+        setError(`Candidate added, but the resume didn't upload: ${uploadError.message}`);
         return;
       }
-      await supabase.from("candidates").update({ resume_path: resumePath }).eq("id", candidate.id);
+      await supabase.from("candidates").update({ resume_path: resumePath }).eq("id", candidateId);
     }
-
-    const { error: appError } = await supabase.from("applications").insert({
-      company_id: companyId,
-      candidate_id: candidate.id,
-      job_posting_id: postingId,
-    });
 
     setSaving(false);
-
-    if (appError) {
-      setError(appError.message);
-      return;
-    }
 
     setFirstName("");
     setLastName("");

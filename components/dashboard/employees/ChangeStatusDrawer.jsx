@@ -58,6 +58,7 @@ export default function ChangeStatusDrawer({ open, onClose, onSaved, employee, s
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 

@@ -54,6 +54,7 @@ export default function PayrollPage({
 
   async function handleCreateRun(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 
@@ -406,6 +407,7 @@ function CompanyDetailsDrawer({ companyId, companyName, companyAddress, companyR
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
 

@@ -13,6 +13,7 @@ export default function ForgotPasswordPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError(null);
 
