@@ -119,6 +119,13 @@ export default function RunDetail({ run, employeesWithPayslips, companyId, compa
               </tr>
             </thead>
             <tbody>
+              {employeesWithPayslips.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="py-10 text-center text-sm text-[var(--color-text-muted)]">
+                    No active employees to pay in this run yet.
+                  </td>
+                </tr>
+              )}
               {employeesWithPayslips.map((e, i) => (
                 <tr
                   key={e.id}

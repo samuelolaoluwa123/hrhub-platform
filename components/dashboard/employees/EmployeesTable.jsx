@@ -165,7 +165,7 @@ export default function EmployeesTable({ initialEmployees, statuses, canManage, 
           <table className="w-full text-sm min-w-[760px]">
             <thead>
               <tr className="text-left text-[11px] font-semibold tracking-wide uppercase text-[#9089a0] border-b border-black/[0.06]">
-                <th className="py-3 pl-4 px-3">Name</th>
+                <th className="py-3 pl-4 px-3 sticky left-0 z-10 bg-white shadow-[1px_0_0_rgba(0,0,0,0.06)]">Name</th>
                 <th className="py-3 px-3">Role</th>
                 <th className="py-3 px-3">Department</th>
                 <th className="py-3 px-3">Status</th>
@@ -183,7 +183,7 @@ export default function EmployeesTable({ initialEmployees, statuses, canManage, 
                     animation: `rowIn 400ms var(--ease-out) ${i * 0.04}s both`,
                   }}
                 >
-                  <td className="py-3.5 pl-4 px-3">
+                  <td className="py-3.5 pl-4 px-3 sticky left-0 z-10 bg-white shadow-[1px_0_0_rgba(0,0,0,0.06)]">
                     <div className="flex items-center gap-2.5">
                       <EmployeeAvatar
                         firstName={emp.first_name}
