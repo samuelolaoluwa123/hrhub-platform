@@ -33,7 +33,7 @@ const EMPTY_FORM = {
   access_level: "employee",
 };
 
-export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee, companyId, employees, isAdmin, currentProfileId }) {
+export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee, companyId, employees, isAdmin, currentProfileId, statuses = [] }) {
   const supabase = createClient();
   const toast = useToast();
   const [form, setForm] = useState(EMPTY_FORM);
@@ -98,6 +98,25 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
       responsibilities: form.responsibilities.trim() || null,
     };
 
+    // Phase 15 — real bug found while testing: this form never set
+    // `status` on insert, so a brand-new employee fell through to the
+    // employees table's own column default — a leftover literal
+    // 'active' (lowercase) from before Phase 1.1 made statuses
+    // per-company and capitalized. No company's real status list has
+    // ever matched that literal since, so validate_employee_status()
+    // rejected every single "Add employee" submission with "Invalid
+    // employee status \"active\" for this company" — creating a new
+    // employee from scratch has been completely broken. Same
+    // first-active-headcount-status-with-'Active'-fallback logic
+    // hire_candidate() already uses, so a new hire looks the same
+    // regardless of which path created them.
+    if (!editingEmployee) {
+      const activeStatus = statuses
+        .filter((s) => s.is_active_headcount && !s.is_exit)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0];
+      payload.status = activeStatus?.name ?? "Active";
+    }
+
     // RLS enforces that only admin/manager can write here. On insert,
     // company_id must be set explicitly (it has no default) — omitting
     // it makes the row's company_id NULL, which fails the RLS check
@@ -136,7 +155,16 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
     setSaving(false);
 
     if (dbError) {
-      setError(dbError.message);
+      // Phase 15 — employees_company_email_unique (added because a
+      // duplicate employee/email was previously accepted with zero
+      // rejection) surfaces as a raw Postgres constraint-violation
+      // string by default; translated into the actual message this
+      // situation calls for instead.
+      setError(
+        dbError.code === "23505"
+          ? "An employee with this email already exists in your company."
+          : dbError.message
+      );
       return;
     }
 

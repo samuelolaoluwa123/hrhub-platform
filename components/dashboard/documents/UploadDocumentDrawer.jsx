@@ -7,6 +7,16 @@ import { DOC_TYPES, docTypeLabel } from "./DocumentsPage";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB
 
+// Phase 15 — kept in sync manually with the employee-documents bucket's
+// own allowed_mime_types (the real, unbypassable gate — this is just
+// the same rule surfaced early, before a slow upload even starts).
+const ALLOWED_TYPES = [
+  "image/jpeg", "image/png", "image/webp", "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+const ALLOWED_EXT_HINT = ".jpg, .png, .webp, .pdf, .doc, .docx";
+
 export default function UploadDocumentDrawer({
   open,
   onClose,
@@ -51,6 +61,10 @@ export default function UploadDocumentDrawer({
     }
     if (file.size > MAX_FILE_BYTES) {
       setError("File is too large — 10MB max.");
+      return;
+    }
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setError(`That file type isn't supported. Allowed: ${ALLOWED_EXT_HINT}.`);
       return;
     }
 
@@ -192,10 +206,11 @@ export default function UploadDocumentDrawer({
             <input
               type="file"
               required
+              accept={ALLOWED_TYPES.join(",")}
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="w-full text-sm text-[var(--color-text-muted)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-violet-tint)] file:px-3 file:py-2 file:text-sm file:font-medium file:text-[var(--color-primary)]"
             />
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">10MB max.</p>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">{ALLOWED_EXT_HINT} — 10MB max.</p>
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}

@@ -11,6 +11,18 @@ const SOURCES = [
   { id: "other", label: "Other" },
 ];
 
+// Phase 15 — this form previously had zero client-side file validation
+// at all (no size check, no type check — unlike UploadDocumentDrawer,
+// which at least checked size). Kept in sync manually with the
+// candidate-resumes bucket's own allowed_mime_types, the real gate.
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB
+const ALLOWED_TYPES = [
+  "image/jpeg", "image/png", "image/webp", "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+const ALLOWED_EXT_HINT = ".pdf, .doc, .docx, .jpg, .png";
+
 export default function AddCandidateDrawer({ open, onClose, onSaved, companyId, postingId }) {
   const supabase = createClient();
   const toast = useToast();
@@ -25,6 +37,21 @@ export default function AddCandidateDrawer({ open, onClose, onSaved, companyId, 
 
   async function handleSubmit(e) {
     e.preventDefault();
+
+    // Validated before creating anything — catching a bad resume after
+    // the candidate row already exists would mean either a confusing
+    // partial failure or an orphaned candidate with no resume.
+    if (resume) {
+      if (resume.size > MAX_FILE_BYTES) {
+        setError("Resume is too large — 10MB max.");
+        return;
+      }
+      if (!ALLOWED_TYPES.includes(resume.type)) {
+        setError(`That file type isn't supported. Allowed: ${ALLOWED_EXT_HINT}.`);
+        return;
+      }
+    }
+
     setSaving(true);
     setError(null);
 
@@ -136,9 +163,11 @@ export default function AddCandidateDrawer({ open, onClose, onSaved, companyId, 
             </label>
             <input
               type="file"
+              accept={ALLOWED_TYPES.join(",")}
               onChange={(e) => setResume(e.target.files?.[0] ?? null)}
               className="w-full text-sm text-[var(--color-text-muted)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-violet-tint)] file:px-3 file:py-2 file:text-sm file:font-medium file:text-[var(--color-primary)]"
             />
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">{ALLOWED_EXT_HINT} — 10MB max.</p>
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}

@@ -315,6 +315,7 @@ export default function EmployeesTable({ initialEmployees, statuses, canManage, 
         employees={employees}
         isAdmin={isAdmin}
         currentProfileId={currentProfileId}
+        statuses={statuses}
       />
 
       <ChangeStatusDrawer
