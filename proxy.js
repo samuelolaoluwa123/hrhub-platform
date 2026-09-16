@@ -13,6 +13,7 @@ const ROLE_ONLY_PREFIXES = [
   { prefix: "/dashboard/approvals", roles: ["admin", "manager"] },
   { prefix: "/dashboard/employees", roles: ["admin", "manager"] },
   { prefix: "/dashboard/audit-log", roles: ["admin"] },
+  { prefix: "/dashboard/settings", roles: ["admin"] },
 ];
 
 // Phase 2.4: a not-fully-onboarded employee can only reach these —

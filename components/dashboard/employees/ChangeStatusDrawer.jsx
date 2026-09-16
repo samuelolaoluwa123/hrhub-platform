@@ -12,10 +12,20 @@ const clearRing = (e) => (e.target.style.boxShadow = "none");
 // Leave <-> Suspended <-> Inactive). Exit statuses (Resigned, Terminated,
 // Retired, Deceased) go through ExitEmployeeDrawer instead — they need
 // handover/replacement/outstanding-items detail this form doesn't ask for.
+//
+// Phase 5 — a status's real-world effect on portal login is now its own
+// explicit, admin-configurable flag (blocks_login, set from Settings →
+// Employee Statuses) rather than being silently hardwired to "is this
+// an exit status." Whatever the company has configured, this drawer
+// just follows it.
 export default function ChangeStatusDrawer({ open, onClose, onSaved, employee, statuses }) {
   const supabase = createClient();
   const toast = useToast();
-  const nonExitStatuses = statuses.filter((s) => !s.is_exit);
+  // Deactivated statuses (Settings → Employee Statuses) aren't offered
+  // as a new choice, same as a deactivated leave type isn't offered on
+  // a new leave request — the fallback below still handles an employee
+  // whose *current* status was since deactivated.
+  const nonExitStatuses = statuses.filter((s) => !s.is_exit && s.is_active !== false);
   const statusByName = new Map(statuses.map((s) => [s.name, s]));
 
   const [status, setStatus] = useState("");
@@ -62,7 +72,8 @@ export default function ChangeStatusDrawer({ open, onClose, onSaved, employee, s
     setSaving(true);
     setError(null);
 
-    const wasExit = statusByName.get(employee.status)?.is_exit;
+    const oldBlocksLogin = statusByName.get(employee.status)?.blocks_login ?? false;
+    const newBlocksLogin = statusByName.get(status)?.blocks_login ?? false;
 
     const { error: dbError } = await supabase
       .from("employees")
@@ -80,20 +91,24 @@ export default function ChangeStatusDrawer({ open, onClose, onSaved, employee, s
       return;
     }
 
-    // 13 — the symmetric undo of ExitEmployeeDrawer's access revoke: a
-    // mis-recorded exit or a genuine rehire moving back to a non-exit
-    // status (the only kind this drawer offers) should restore login
-    // access, not leave it permanently banned. Same non-blocking
-    // treatment — the status change itself already succeeded.
-    if (wasExit) {
+    // Phase 5 — follows whatever the target status is actually
+    // configured to do, in either direction: moving onto a
+    // blocks_login status (e.g. a mis-recorded exit's original exit
+    // status, or a non-exit status a company has explicitly opted
+    // into banning login for) revokes access the same way
+    // ExitEmployeeDrawer does; moving off one restores it. A same-to-
+    // same transition (both block, or neither does) correctly does
+    // nothing. Non-blocking, same as before — the status change itself
+    // already succeeded regardless of whether this call works.
+    if (oldBlocksLogin !== newBlocksLogin) {
       try {
         await fetch("/api/employees/portal-access", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ employeeId: employee.id, restore: true }),
+          body: JSON.stringify({ employeeId: employee.id, restore: !newBlocksLogin }),
         });
-      } catch (restoreErr) {
-        console.error("Failed to restore portal access:", restoreErr);
+      } catch (accessErr) {
+        console.error("Failed to update portal access:", accessErr);
       }
     }
 
