@@ -409,12 +409,25 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
             >
               <option value="">No manager</option>
               {employees
-                .filter((emp) => emp.id !== editingEmployee?.id)
-                .map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.first_name} {emp.last_name}
-                  </option>
-                ))}
+                .filter((emp) => {
+                  if (emp.id === editingEmployee?.id) return false;
+                  // Someone who's exited shouldn't be newly assignable
+                  // as a manager — but if they're already the current
+                  // manager on this record, keep them in the list
+                  // (tagged below) rather than silently dropping the
+                  // selection out from under a controlled <select>.
+                  const exited = statuses.find((s) => s.name === emp.status)?.is_exit;
+                  return !exited || emp.id === form.manager_id;
+                })
+                .map((emp) => {
+                  const exited = statuses.find((s) => s.name === emp.status)?.is_exit;
+                  return (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.first_name} {emp.last_name}
+                      {exited ? " (left)" : ""}
+                    </option>
+                  );
+                })}
             </select>
           </Field>
 

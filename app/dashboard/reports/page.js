@@ -34,6 +34,12 @@ export default async function ReportsRoute() {
     .select("id, first_name, last_name, email, job_title, department, team, status, start_date, manager_id")
     .order("first_name");
 
+  const { data: exitStatusRows } = await supabase
+    .from("employee_statuses")
+    .select("name")
+    .eq("is_exit", true);
+  const exitStatusNames = (exitStatusRows ?? []).map((s) => s.name);
+
   // Payroll Register is admin-only (matches Payroll's own gating) and
   // needs a run to report on — the run list is cheap and load-bearing
   // for the picker, so it's fetched up front too.
@@ -52,6 +58,7 @@ export default async function ReportsRoute() {
       isAdmin={isAdmin}
       companyId={profile?.company_id}
       employees={employees ?? []}
+      exitStatusNames={exitStatusNames}
       payrollRuns={payrollRuns ?? []}
       leaveTypes={leaveTypes ?? []}
     />

@@ -21,7 +21,7 @@ function naira(n) {
   return Number(n || 0).toLocaleString();
 }
 
-export default function ReportsPage({ isAdmin, companyId, employees, payrollRuns, leaveTypes }) {
+export default function ReportsPage({ isAdmin, companyId, employees, exitStatusNames, payrollRuns, leaveTypes }) {
   const [tab, setTab] = useState("directory");
 
   const tabs = [
@@ -62,7 +62,7 @@ export default function ReportsPage({ isAdmin, companyId, employees, payrollRuns
         ))}
       </div>
 
-      {tab === "directory" && <DirectoryReport employees={employees} />}
+      {tab === "directory" && <DirectoryReport employees={employees} exitStatusNames={exitStatusNames} />}
       {tab === "payroll" && isAdmin && <PayrollReport payrollRuns={payrollRuns} />}
       {tab === "leave" && <LeaveReport leaveTypes={leaveTypes} />}
       {tab === "attendance" && <AttendanceReport />}
@@ -107,12 +107,15 @@ function EmptyRow({ text }) {
 
 // ---------- Employee Directory ----------
 
-function DirectoryReport({ employees }) {
-  const managerName = useMemo(() => {
+function DirectoryReport({ employees, exitStatusNames }) {
+  const managerLabel = useMemo(() => {
     const map = new Map();
-    for (const e of employees) map.set(e.id, `${e.first_name} ${e.last_name}`);
+    for (const e of employees) {
+      const exited = exitStatusNames.includes(e.status);
+      map.set(e.id, `${e.first_name} ${e.last_name}${exited ? " (left)" : ""}`);
+    }
     return map;
-  }, [employees]);
+  }, [employees, exitStatusNames]);
 
   const rows = employees.map((e) => ({
     name: `${e.first_name} ${e.last_name}`,
@@ -122,7 +125,7 @@ function DirectoryReport({ employees }) {
     team: e.team || "—",
     status: e.status,
     start_date: e.start_date || "—",
-    manager: e.manager_id ? managerName.get(e.manager_id) ?? "—" : "—",
+    manager: e.manager_id ? managerLabel.get(e.manager_id) ?? "—" : "—",
   }));
 
   const columns = [

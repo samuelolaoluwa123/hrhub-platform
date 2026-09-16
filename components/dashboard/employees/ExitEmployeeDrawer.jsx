@@ -51,6 +51,12 @@ export default function ExitEmployeeDrawer({ open, onClose, onSaved, employee, s
   if (!open || !employee) return null;
 
   const otherEmployees = employees.filter((e) => e.id !== employee.id);
+  // manager_id isn't touched by record_employee_exit() at all — anyone
+  // who reports to this person keeps pointing at them indefinitely
+  // unless HR is told to go reassign it. This is a real, visible gap:
+  // it's the exact "Manager" column both the employee edit form and
+  // the Reports > Employee Directory show.
+  const directReports = employees.filter((e) => e.manager_id === employee.id && e.id !== employee.id);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -106,6 +112,17 @@ export default function ExitEmployeeDrawer({ open, onClose, onSaved, employee, s
         <p className="text-sm text-[var(--color-text-muted)] mt-1 mb-6">
           {employee.first_name} {employee.last_name} &mdash; this permanently ends their active status and can&apos;t be undone from here.
         </p>
+
+        {directReports.length > 0 && (
+          <div className="rounded-lg bg-[#fef3e2] px-4 py-3 mb-5 text-sm text-[#8a5a10]">
+            <p className="font-medium">
+              {directReports.length} {directReports.length === 1 ? "person" : "people"} still report{directReports.length === 1 ? "s" : ""} to {employee.first_name}:
+            </p>
+            <p className="mt-0.5">
+              {directReports.map((e) => `${e.first_name} ${e.last_name}`).join(", ")} — reassign their manager after recording this exit.
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
