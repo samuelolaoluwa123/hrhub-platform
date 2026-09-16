@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { lagosLocalParts } from "@/lib/attendanceEvidence";
+import { getSetupStatus } from "@/lib/setupStatus";
 
 const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -108,6 +110,11 @@ export default async function DashboardPage() {
   const { workDate: today } = lagosLocalParts();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
+  // Setup checklist banner — admin-only (matches /dashboard/setup's own
+  // gate), a nudge not a gate, hidden entirely once every step is real.
+  const setupSteps = profile.role === "admin" ? await getSetupStatus(supabase, companyId) : [];
+  const setupRemaining = setupSteps.filter((s) => !s.done).length;
+
   const [
     { count: totalEmployees },
     { data: activeEmployeeCount },
@@ -202,6 +209,22 @@ export default async function DashboardPage() {
   return (
     <div>
       <Greeting fullName={profile?.full_name} />
+
+      {setupRemaining > 0 && (
+        <Link
+          href="/dashboard/setup"
+          className="flex items-center justify-between gap-3 bg-[var(--color-violet-tint)] border border-[var(--color-primary)]/15 rounded-2xl px-5 py-4 mb-6 hover:border-[var(--color-primary)]/30 transition-colors duration-150"
+          style={{ transitionTimingFunction: "var(--ease-out)" }}
+        >
+          <div>
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">Finish setting up your company</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+              {setupRemaining} step{setupRemaining === 1 ? "" : "s"} left — company details, departments, leave types, onboarding, your team.
+            </p>
+          </div>
+          <span className="text-sm font-medium text-[var(--color-primary)] shrink-0">Continue →</span>
+        </Link>
+      )}
 
       <p className="text-[10.5px] font-semibold tracking-wide text-[var(--color-text-muted)] uppercase mb-3">
         Workforce
