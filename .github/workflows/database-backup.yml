@@ -23,8 +23,12 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install --yes postgresql-client
+      - name: Install PostgreSQL client (v17, matching Supabase's server)
+        run: |
+          sudo apt-get update && sudo apt-get install --yes wget gnupg lsb-release
+          echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          sudo apt-get update && sudo apt-get install --yes postgresql-client-17
 
       - name: Dump and compress the database
         run: |
