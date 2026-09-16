@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/dashboard/ToastProvider";
+import { assignOnboardingChecklist } from "@/lib/assignOnboardingChecklist";
 
 const EMPLOYMENT_LEVELS = [
   { id: "entry", label: "Entry" },
@@ -507,64 +508,6 @@ function Field({ label, children }) {
   );
 }
 
-// Matches the new employee's department to a template of the same
-// name (case-insensitive); falls back to whichever template is
-// marked default. Silently does nothing if no template matches at
-// all — that's a real possible outcome, not an error.
-// Phase 7 — "the zero-template problem": this used to return silently
-// (no requirements assigned, no warning to anyone) whenever no
-// template existed, none matched, or the matched one had zero
-// requirements. onboarding_complete already correctly computes false
-// for that case and blocks Payroll/Leave, but HR was never told why.
-// Now reports back whether anything was actually assigned so the
-// caller can surface it, and notifies every admin directly (same
-// fan-out pattern the bank-details-change alert already uses) so it's
-// visible even to someone other than whoever ran this form.
-async function assignOnboardingChecklist(employeeId, employeeName, department, companyId, supabase) {
-  const { data: templates } = await supabase
-    .from("onboarding_templates")
-    .select("id, name, is_default")
-    .eq("company_id", companyId)
-    .eq("is_active", true);
-
-  const matched =
-    templates?.length &&
-    (templates.find((t) => t.name.toLowerCase() === (department || "").toLowerCase()) ||
-      templates.find((t) => t.is_default));
-
-  const tasks = matched
-    ? (
-        await supabase
-          .from("onboarding_tasks")
-          .select("id")
-          .eq("template_id", matched.id)
-          .eq("is_active", true)
-      ).data
-    : null;
-
-  if (matched && tasks?.length) {
-    await supabase.from("employee_onboarding").insert(
-      tasks.map((task) => ({
-        company_id: companyId,
-        employee_id: employeeId,
-        task_id: task.id,
-        is_complete: false,
-      }))
-    );
-    return true;
-  }
-
-  const { data: admins } = await supabase.from("profiles").select("id").eq("company_id", companyId).eq("role", "admin");
-  if (admins?.length) {
-    await supabase.from("notifications").insert(
-      admins.map((a) => ({
-        company_id: companyId,
-        profile_id: a.id,
-        type: "onboarding",
-        message: `${employeeName} was added with no onboarding checklist assigned — set one up manually.`,
-        link: "/dashboard/onboarding",
-      }))
-    );
-  }
-  return false;
-}
+// assignOnboardingChecklist moved to lib/assignOnboardingChecklist.js
+// so the CSV bulk importer can reuse the exact same zero-template
+// handling (Phase 7) instead of duplicating it.

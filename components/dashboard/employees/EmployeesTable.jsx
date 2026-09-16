@@ -6,6 +6,7 @@ import EmployeeDrawer from "./EmployeeDrawer";
 import ChangeStatusDrawer from "./ChangeStatusDrawer";
 import ExitEmployeeDrawer from "./ExitEmployeeDrawer";
 import PurgeDocumentsDrawer from "./PurgeDocumentsDrawer";
+import ImportEmployeesDrawer from "./ImportEmployeesDrawer";
 import EmployeeAvatar from "@/components/dashboard/EmployeeAvatar";
 
 // Badge color is derived from the status's flags, not its name — the
@@ -28,6 +29,7 @@ export default function EmployeesTable({ initialEmployees, statuses, departments
   const [statusDrawerEmployee, setStatusDrawerEmployee] = useState(null);
   const [exitDrawerEmployee, setExitDrawerEmployee] = useState(null);
   const [purgeDrawerEmployee, setPurgeDrawerEmployee] = useState(null);
+  const [importDrawerOpen, setImportDrawerOpen] = useState(false);
   const [invitingId, setInvitingId] = useState(null);
   const [inviteError, setInviteError] = useState(null);
 
@@ -106,16 +108,25 @@ export default function EmployeesTable({ initialEmployees, statuses, departments
           </p>
         </div>
         {canManage && (
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-transform duration-150 hover:scale-[1.03] active:scale-95"
-            style={{ backgroundColor: "var(--color-primary)", transitionTimingFunction: "var(--ease-out)" }}
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Add employee
-          </button>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setImportDrawerOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-medium text-[var(--color-text-primary)] border border-black/10 transition-colors duration-150 hover:bg-black/[0.03]"
+              style={{ transitionTimingFunction: "var(--ease-out)" }}
+            >
+              Import CSV
+            </button>
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-transform duration-150 hover:scale-[1.03] active:scale-95"
+              style={{ backgroundColor: "var(--color-primary)", transitionTimingFunction: "var(--ease-out)" }}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Add employee
+            </button>
+          </div>
         )}
       </div>
 
@@ -318,6 +329,14 @@ export default function EmployeesTable({ initialEmployees, statuses, departments
         statuses={statuses}
         departments={departments}
         teams={teams}
+      />
+
+      <ImportEmployeesDrawer
+        open={importDrawerOpen}
+        onClose={() => setImportDrawerOpen(false)}
+        onSaved={refresh}
+        companyId={companyId}
+        statuses={statuses}
       />
 
       <ChangeStatusDrawer
