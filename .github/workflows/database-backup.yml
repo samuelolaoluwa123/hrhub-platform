@@ -1,0 +1,64 @@
+name: Weekly database backup
+
+# Phase 33 — Supabase's free tier has no automated backups / point-in-time
+# recovery. This is the free stopgap: a full pg_dump, gzipped, uploaded to
+# a PRIVATE Supabase Storage bucket (database-backups — no RLS policies,
+# reachable only via the service-role key). It does NOT go into this repo
+# or into a workflow artifact — this repo is public, and a payroll/PII
+# dump must never end up somewhere a public repo makes it reachable.
+#
+# Needs one secret this workflow doesn't already have: SUPABASE_DB_URL,
+# the Postgres "Session pooler" connection string (Project Settings ->
+# Database -> Connection string -> URI -> mode "Session"). Must be the
+# Session pooler, not "Direct connection" (IPv6-only on the free tier;
+# GitHub-hosted runners don't have IPv6 egress) and not "Transaction
+# pooler" (PgBouncer transaction mode isn't reliable for pg_dump).
+
+on:
+  schedule:
+    - cron: "0 5 * * 0" # Sundays, 05:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install --yes postgresql-client
+
+      - name: Dump and compress the database
+        run: |
+          set -euo pipefail
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
+          FILENAME="hrhub-backup-${TIMESTAMP}.sql.gz"
+          pg_dump "${{ secrets.SUPABASE_DB_URL }}" --no-owner --no-privileges | gzip -9 > "$FILENAME"
+          echo "FILENAME=$FILENAME" >> "$GITHUB_ENV"
+
+      - name: Upload to the private database-backups bucket
+        run: |
+          set -euo pipefail
+          curl -sf -X POST "https://gcmsnibvomqmnqcavocn.supabase.co/storage/v1/object/database-backups/${FILENAME}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/gzip" \
+            --data-binary "@${FILENAME}"
+
+      - name: Prune old backups (keep the last 8 weekly)
+        run: |
+          set -euo pipefail
+          OBJECTS=$(curl -sf -X POST "https://gcmsnibvomqmnqcavocn.supabase.co/storage/v1/object/list/database-backups" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"limit": 1000, "sortBy": {"column": "name", "order": "asc"}}')
+          TO_DELETE=$(echo "$OBJECTS" | jq -r '.[].name' | head -n -8)
+          if [ -n "$TO_DELETE" ]; then
+            NAMES_JSON=$(echo "$TO_DELETE" | jq -R . | jq -s .)
+            curl -sf -X DELETE "https://gcmsnibvomqmnqcavocn.supabase.co/storage/v1/object/database-backups" \
+              -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"prefixes\": ${NAMES_JSON}}"
+          else
+            echo "Nothing to prune."
+          fi
