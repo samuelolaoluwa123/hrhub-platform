@@ -55,7 +55,7 @@ export default function GoalDrawer({ open, onClose, onSaved, employeeId, company
       <div className="absolute inset-0 bg-black/35 animate-[fadeIn_200ms_var(--ease-out)]" onClick={onClose} />
       <div className="absolute top-0 right-0 bottom-0 w-full max-w-[380px] bg-white p-7 overflow-y-auto shadow-2xl animate-[slideIn_280ms_var(--ease-out)]">
         <h2 className="font-display text-lg font-semibold text-[var(--color-text-primary)]">Add goal</h2>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1 mb-6">Set something you're working toward.</p>
+        <p className="text-sm text-[var(--color-text-muted)] mt-1 mb-6">Set something you&apos;re working toward.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

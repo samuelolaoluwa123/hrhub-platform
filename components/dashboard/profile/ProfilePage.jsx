@@ -99,7 +99,7 @@ export default function ProfilePage({ profile, employee }) {
         </div>
         <div>
           <h1 className="font-display text-2xl font-semibold text-[var(--color-text-primary)]">My Profile</h1>
-          <p className="text-[var(--color-text-muted)] text-sm mt-0.5">Your own details — no one else's.</p>
+          <p className="text-[var(--color-text-muted)] text-sm mt-0.5">Your own details — no one else&apos;s.</p>
         </div>
       </div>
 
@@ -126,7 +126,7 @@ export default function ProfilePage({ profile, employee }) {
 
         {!employee ? (
           <p className="text-center py-9 text-sm text-[var(--color-text-muted)]">
-            You're not linked to an employee record yet — job details will show here once you are.
+            You&apos;re not linked to an employee record yet — job details will show here once you are.
           </p>
         ) : (
           <>

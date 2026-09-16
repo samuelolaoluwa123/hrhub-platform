@@ -236,7 +236,7 @@ function StatusDrawer({ status, onClose, onSaved }) {
               <span>
                 <span className="block text-sm text-[var(--color-text-primary)]">Counts as active headcount</span>
                 <span className="block text-xs text-[var(--color-text-muted)] mt-0.5">
-                  Included in "active employees," payroll runs, and onboarding-completion %.
+                  Included in &quot;active employees,&quot; payroll runs, and onboarding-completion %.
                 </span>
               </span>
             </label>
@@ -251,7 +251,7 @@ function StatusDrawer({ status, onClose, onSaved }) {
               <span>
                 <span className="block text-sm text-[var(--color-text-primary)]">Is an exit status</span>
                 <span className="block text-xs text-[var(--color-text-muted)] mt-0.5">
-                  Only reachable through "Record exit" (handover, replacement, outstanding items) — not this list's own status picker.
+                  Only reachable through &quot;Record exit&quot; (handover, replacement, outstanding items) — not this list&apos;s own status picker.
                 </span>
               </span>
             </label>

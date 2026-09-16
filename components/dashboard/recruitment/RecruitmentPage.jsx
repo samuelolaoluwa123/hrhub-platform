@@ -70,7 +70,7 @@ export default function RecruitmentPage({ role, requisitions, postings, companyI
         </div>
         <div>
           <h1 className="font-display text-2xl font-semibold text-[var(--color-text-primary)]">Recruitment</h1>
-          <p className="text-[var(--color-text-muted)] text-sm mt-0.5">Requisitions, postings, and who's applied.</p>
+          <p className="text-[var(--color-text-muted)] text-sm mt-0.5">Requisitions, postings, and who&apos;s applied.</p>
         </div>
       </div>
 
