@@ -36,6 +36,24 @@ export default async function SettingsRoute() {
         <path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
       ),
     },
+    {
+      href: "/dashboard/settings/departments",
+      title: "Departments",
+      description: "Manage the department list suggested across Employees, recruitment, and announcements.",
+      icon: <path d="M3 21h18M5 21V7l8-4v18M13 21V11l6 3v7M9 9v.01M9 12v.01M9 15v.01" />,
+    },
+    {
+      href: "/dashboard/settings/teams",
+      title: "Teams",
+      description: "A narrower grouping than department — manage the list suggested on Employees.",
+      icon: (
+        <>
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+        </>
+      ),
+    },
   ];
 
   return (

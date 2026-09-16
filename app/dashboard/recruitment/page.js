@@ -24,7 +24,7 @@ export default async function RecruitmentRoute() {
     redirect("/unauthorized");
   }
 
-  const [{ data: requisitions }, { data: postings }] = await Promise.all([
+  const [{ data: requisitions }, { data: postings }, { data: departments }] = await Promise.all([
     supabase
       .from("job_requisitions")
       .select("id, title, department, employment_type, headcount, justification, status, created_at")
@@ -33,6 +33,7 @@ export default async function RecruitmentRoute() {
       .from("job_postings")
       .select("id, title, department, employment_type, location, status, created_at, applications(id)")
       .order("created_at", { ascending: false }),
+    supabase.from("departments").select("*").order("sort_order"),
   ]);
 
   return (
@@ -42,6 +43,7 @@ export default async function RecruitmentRoute() {
       postings={postings ?? []}
       companyId={profile?.company_id}
       profileId={user.id}
+      departments={departments ?? []}
     />
   );
 }

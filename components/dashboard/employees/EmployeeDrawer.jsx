@@ -33,7 +33,7 @@ const EMPTY_FORM = {
   access_level: "employee",
 };
 
-export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee, companyId, employees, isAdmin, currentProfileId, statuses = [] }) {
+export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee, companyId, employees, isAdmin, currentProfileId, statuses = [], departments = [], teams = [] }) {
   const supabase = createClient();
   const toast = useToast();
   const [form, setForm] = useState(EMPTY_FORM);
@@ -277,6 +277,7 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
             </Field>
             <Field label="Department">
               <input
+                list="department-suggestions"
                 value={form.department}
                 onChange={(e) => update("department", e.target.value)}
                 placeholder="Design"
@@ -284,11 +285,17 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
                 onFocus={focusRing}
                 onBlur={clearRing}
               />
+              <datalist id="department-suggestions">
+                {departments.filter((d) => d.is_active !== false).map((d) => (
+                  <option key={d.id} value={d.name} />
+                ))}
+              </datalist>
             </Field>
           </div>
 
           <Field label="Team">
             <input
+              list="team-suggestions"
               value={form.team}
               onChange={(e) => update("team", e.target.value)}
               placeholder="e.g. Design Systems (optional, narrower than department)"
@@ -296,6 +303,11 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
               onFocus={focusRing}
               onBlur={clearRing}
             />
+            <datalist id="team-suggestions">
+              {teams.filter((t) => t.is_active !== false).map((t) => (
+                <option key={t.id} value={t.name} />
+              ))}
+            </datalist>
           </Field>
 
           <div className="grid grid-cols-2 gap-3">

@@ -31,7 +31,7 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export default function RecruitmentPage({ role, requisitions, postings, companyId, profileId }) {
+export default function RecruitmentPage({ role, requisitions, postings, companyId, profileId, departments = [] }) {
   const router = useRouter();
   const supabase = createClient();
   const isAdmin = role === "admin";
@@ -183,6 +183,7 @@ export default function RecruitmentPage({ role, requisitions, postings, companyI
         onSaved={() => router.refresh()}
         companyId={companyId}
         profileId={profileId}
+        departments={departments}
       />
 
       <PostingDrawer

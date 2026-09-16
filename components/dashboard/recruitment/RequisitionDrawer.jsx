@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/dashboard/ToastProvider";
 
-export default function RequisitionDrawer({ open, onClose, onSaved, companyId, profileId }) {
+export default function RequisitionDrawer({ open, onClose, onSaved, companyId, profileId, departments = [] }) {
   const supabase = createClient();
   const toast = useToast();
   const [title, setTitle] = useState("");
@@ -69,7 +69,21 @@ export default function RequisitionDrawer({ open, onClose, onSaved, companyId, p
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Department</label>
-              <input type="text" value={department} onChange={(e) => setDepartment(e.target.value)} className={inputClass} onFocus={focusRing} onBlur={clearRing} placeholder="Engineering" />
+              <input
+                type="text"
+                list="requisition-department-suggestions"
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                className={inputClass}
+                onFocus={focusRing}
+                onBlur={clearRing}
+                placeholder="Engineering"
+              />
+              <datalist id="requisition-department-suggestions">
+                {departments.filter((d) => d.is_active !== false).map((d) => (
+                  <option key={d.id} value={d.name} />
+                ))}
+              </datalist>
             </div>
             <div>
               <label className="block text-xs font-medium text-[var(--color-text-primary)] mb-1.5">Headcount</label>

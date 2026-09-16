@@ -18,7 +18,7 @@ function badgeClass(statusMeta) {
   return "bg-[#fef3e2] text-[#d68a1f]";
 }
 
-export default function EmployeesTable({ initialEmployees, statuses, canManage, isAdmin, currentProfileId, companyId }) {
+export default function EmployeesTable({ initialEmployees, statuses, departments = [], teams = [], canManage, isAdmin, currentProfileId, companyId }) {
   const router = useRouter();
 
   const [search, setSearch] = useState("");
@@ -316,6 +316,8 @@ export default function EmployeesTable({ initialEmployees, statuses, canManage, 
         isAdmin={isAdmin}
         currentProfileId={currentProfileId}
         statuses={statuses}
+        departments={departments}
+        teams={teams}
       />
 
       <ChangeStatusDrawer

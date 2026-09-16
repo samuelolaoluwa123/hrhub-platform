@@ -25,10 +25,11 @@ export default async function EmployeesPage() {
     .select("*, profiles!employees_profile_id_fkey(role)")
     .order("created_at", { ascending: false });
 
-  const { data: statuses } = await supabase
-    .from("employee_statuses")
-    .select("*")
-    .order("sort_order");
+  const [{ data: statuses }, { data: departments }, { data: teams }] = await Promise.all([
+    supabase.from("employee_statuses").select("*").order("sort_order"),
+    supabase.from("departments").select("*").order("sort_order"),
+    supabase.from("teams").select("*").order("sort_order"),
+  ]);
 
   const canManage = profile?.role === "admin" || profile?.role === "manager";
 
@@ -36,6 +37,8 @@ export default async function EmployeesPage() {
     <EmployeesTable
       initialEmployees={employees ?? []}
       statuses={statuses ?? []}
+      departments={departments ?? []}
+      teams={teams ?? []}
       canManage={canManage}
       isAdmin={profile?.role === "admin"}
       currentProfileId={user.id}
