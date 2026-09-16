@@ -1,0 +1,28 @@
+name: Refresh demo tenant attendance
+
+# Phase 28 — Demo Tenant Upkeep. The Overview dashboard's "Clocked in
+# today" card is date-dependent (work_date = current_date) — without
+# this, Sunridge Foods Ltd's attendance data goes stale the day after
+# it's seeded and shows "0 of 8 clocked in" to anyone shown the live
+# demo from then on, which reads as broken rather than as a working
+# feature. refresh_demo_attendance() is hardcoded to Sunridge's
+# company_id only — this can never touch a real customer's tenant.
+
+on:
+  schedule:
+    # 06:00 UTC = 07:00 WAT — same time as the birthday check, before
+    # most people would be looking at the demo for the day.
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refresh Sunridge Foods Ltd's attendance for today
+        run: |
+          curl -sf -X POST "https://gcmsnibvomqmnqcavocn.supabase.co/rest/v1/rpc/refresh_demo_attendance" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -o /dev/null
