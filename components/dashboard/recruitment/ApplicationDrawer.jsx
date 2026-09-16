@@ -171,18 +171,24 @@ export default function ApplicationDrawer({ open, onClose, onSaved, application:
     if (savingOffer) return;
     setSavingOffer(true);
     setError(null);
+    // Saving offer details (e.g. correcting a salary figure after the
+    // fact) used to always force status back to "offer" — silently
+    // un-hiring or un-rejecting a candidate whose pipeline had already
+    // moved past it. Only auto-advance the pipeline when it isn't
+    // already at one of those terminal states.
+    const isTerminal = status === "hired" || status === "rejected" || status === "withdrawn";
     const { error: dbError } = await supabase
       .from("applications")
       .update({
         offered_salary: offeredSalary ? Number(offeredSalary) : null,
         offer_status: offerStatus || null,
         offer_sent_at: new Date().toISOString(),
-        status: "offer",
+        ...(isTerminal ? {} : { status: "offer" }),
       })
       .eq("id", app.id);
     setSavingOffer(false);
     if (dbError) { setError(dbError.message); return; }
-    setStatus("offer");
+    if (!isTerminal) setStatus("offer");
     onSaved();
   }
 
