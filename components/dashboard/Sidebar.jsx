@@ -108,6 +108,17 @@ const NAV_ITEMS = [
     ),
   },
   {
+    href: "/dashboard/reports",
+    label: "Reports",
+    roles: ["admin", "manager"],
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M9 17V9M13 17V5M17 17v-4" />
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+      </svg>
+    ),
+  },
+  {
     href: "/dashboard/audit-log",
     label: "Audit Log",
     roles: ["admin"],
