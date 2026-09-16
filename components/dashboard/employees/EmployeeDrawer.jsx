@@ -126,6 +126,7 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
     // able to move a record to a different tenant.
     let dbError;
     let conflict = false;
+    let onboardingAssigned = true;
 
     if (editingEmployee) {
       // Phase 16 — "two admins edit the same employee at once": without
@@ -166,7 +167,13 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
       dbError = insertError;
 
       if (!insertError && newEmployee) {
-        await assignOnboardingChecklist(newEmployee.id, payload.department, companyId, supabase);
+        onboardingAssigned = await assignOnboardingChecklist(
+          newEmployee.id,
+          `${payload.first_name} ${payload.last_name}`,
+          payload.department,
+          companyId,
+          supabase
+        );
       }
     }
 
@@ -194,6 +201,9 @@ export default function EmployeeDrawer({ open, onClose, onSaved, editingEmployee
     }
 
     toast.showSuccess(editingEmployee ? "Employee updated successfully." : "Employee created successfully.");
+    if (!editingEmployee && !onboardingAssigned) {
+      toast.showError("No onboarding checklist could be assigned — set one up on the Onboarding page.");
+    }
     onSaved();
     onClose();
   }
@@ -488,33 +498,60 @@ function Field({ label, children }) {
 // name (case-insensitive); falls back to whichever template is
 // marked default. Silently does nothing if no template matches at
 // all — that's a real possible outcome, not an error.
-async function assignOnboardingChecklist(employeeId, department, companyId, supabase) {
+// Phase 7 — "the zero-template problem": this used to return silently
+// (no requirements assigned, no warning to anyone) whenever no
+// template existed, none matched, or the matched one had zero
+// requirements. onboarding_complete already correctly computes false
+// for that case and blocks Payroll/Leave, but HR was never told why.
+// Now reports back whether anything was actually assigned so the
+// caller can surface it, and notifies every admin directly (same
+// fan-out pattern the bank-details-change alert already uses) so it's
+// visible even to someone other than whoever ran this form.
+async function assignOnboardingChecklist(employeeId, employeeName, department, companyId, supabase) {
   const { data: templates } = await supabase
     .from("onboarding_templates")
     .select("id, name, is_default")
-    .eq("company_id", companyId);
-
-  if (!templates?.length) return;
+    .eq("company_id", companyId)
+    .eq("is_active", true);
 
   const matched =
-    templates.find((t) => t.name.toLowerCase() === (department || "").toLowerCase()) ||
-    templates.find((t) => t.is_default);
+    templates?.length &&
+    (templates.find((t) => t.name.toLowerCase() === (department || "").toLowerCase()) ||
+      templates.find((t) => t.is_default));
 
-  if (!matched) return;
+  const tasks = matched
+    ? (
+        await supabase
+          .from("onboarding_tasks")
+          .select("id")
+          .eq("template_id", matched.id)
+          .eq("is_active", true)
+      ).data
+    : null;
 
-  const { data: tasks } = await supabase
-    .from("onboarding_tasks")
-    .select("id")
-    .eq("template_id", matched.id);
+  if (matched && tasks?.length) {
+    await supabase.from("employee_onboarding").insert(
+      tasks.map((task) => ({
+        company_id: companyId,
+        employee_id: employeeId,
+        task_id: task.id,
+        is_complete: false,
+      }))
+    );
+    return true;
+  }
 
-  if (!tasks?.length) return;
-
-  await supabase.from("employee_onboarding").insert(
-    tasks.map((task) => ({
-      company_id: companyId,
-      employee_id: employeeId,
-      task_id: task.id,
-      is_complete: false,
-    }))
-  );
+  const { data: admins } = await supabase.from("profiles").select("id").eq("company_id", companyId).eq("role", "admin");
+  if (admins?.length) {
+    await supabase.from("notifications").insert(
+      admins.map((a) => ({
+        company_id: companyId,
+        profile_id: a.id,
+        type: "onboarding",
+        message: `${employeeName} was added with no onboarding checklist assigned — set one up manually.`,
+        link: "/dashboard/onboarding",
+      }))
+    );
+  }
+  return false;
 }

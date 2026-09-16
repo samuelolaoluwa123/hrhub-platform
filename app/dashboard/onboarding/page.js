@@ -50,7 +50,7 @@ export default async function OnboardingRoute() {
       ? supabase.from("employees").select("id, first_name, last_name").in("status", activeStatusNames).order("first_name")
       : Promise.resolve({ data: [] }),
     canManage
-      ? supabase.from("onboarding_templates").select("id, name").order("name")
+      ? supabase.from("onboarding_templates").select("id, name").eq("is_active", true).order("name")
       : Promise.resolve({ data: [] }),
   ]);
 

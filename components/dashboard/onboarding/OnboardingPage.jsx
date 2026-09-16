@@ -35,7 +35,7 @@ export default function OnboardingPage({
     if (!templateId) return;
 
     const [{ data: tasks }, { data: existing }] = await Promise.all([
-      supabase.from("onboarding_tasks").select("id").eq("template_id", templateId),
+      supabase.from("onboarding_tasks").select("id").eq("template_id", templateId).eq("is_active", true),
       supabase.from("employee_onboarding").select("task_id").eq("employee_id", employeeId),
     ]);
 

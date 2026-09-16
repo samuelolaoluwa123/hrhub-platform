@@ -29,10 +29,29 @@ export default function TemplatesPage({ templates, companyId }) {
     if (!confirm("Remove this requirement from the template?")) return;
     const { error } = await supabase.from("onboarding_tasks").delete().eq("id", taskId);
     if (error) {
-      toast.showError("Couldn't remove that requirement. Try again.");
+      // Phase 7 — a task that's already been assigned to real
+      // employees can no longer be hard-deleted (it used to silently
+      // wipe their onboarding history via cascade); the DB raises a
+      // specific message for this, translated here instead of shown
+      // as a raw Postgres error.
+      toast.showError(
+        error.message.includes("already been assigned")
+          ? "This requirement has already been assigned to employees — deactivate it instead of deleting."
+          : "Couldn't remove that requirement. Try again."
+      );
       return;
     }
     toast.showSuccess("Requirement removed.");
+    router.refresh();
+  }
+
+  async function handleToggleTaskActive(taskId, isActive) {
+    const { error } = await supabase.from("onboarding_tasks").update({ is_active: !isActive }).eq("id", taskId);
+    if (error) {
+      toast.showError("Couldn't update that requirement. Try again.");
+      return;
+    }
+    toast.showSuccess(isActive ? "Requirement deactivated." : "Requirement reactivated.");
     router.refresh();
   }
 
@@ -52,10 +71,24 @@ export default function TemplatesPage({ templates, companyId }) {
     if (!confirm("Delete this template and all its requirements? This can't be undone.")) return;
     const { error } = await supabase.from("onboarding_templates").delete().eq("id", templateId);
     if (error) {
-      toast.showError("Couldn't delete that template. Try again.");
+      toast.showError(
+        error.message.includes("already been assigned")
+          ? "This template's requirements have already been assigned to employees — deactivate the template instead of deleting."
+          : "Couldn't delete that template. Try again."
+      );
       return;
     }
     toast.showSuccess("Template deleted.");
+    router.refresh();
+  }
+
+  async function handleToggleTemplateActive(templateId, isActive) {
+    const { error } = await supabase.from("onboarding_templates").update({ is_active: !isActive }).eq("id", templateId);
+    if (error) {
+      toast.showError("Couldn't update that template. Try again.");
+      return;
+    }
+    toast.showSuccess(isActive ? "Template deactivated — no longer used for new hires." : "Template reactivated.");
     router.refresh();
   }
 
@@ -102,7 +135,10 @@ export default function TemplatesPage({ templates, companyId }) {
       ) : (
         <div className="grid md:grid-cols-2 gap-5">
           {templates.map((template) => (
-            <div key={template.id} className="bg-white border border-black/[0.06] rounded-2xl p-5">
+            <div
+              key={template.id}
+              className={`bg-white border border-black/[0.06] rounded-2xl p-5 ${template.is_active === false ? "opacity-60" : ""}`}
+            >
               <div className="flex items-start justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <h3 className="font-display font-semibold text-[var(--color-text-primary)]">
@@ -113,14 +149,28 @@ export default function TemplatesPage({ templates, companyId }) {
                       Default
                     </span>
                   )}
+                  {template.is_active === false && (
+                    <span className="text-[10.5px] font-medium bg-[#f3f2f5] text-[#706f83] px-2 py-0.5 rounded-full">
+                      Inactive
+                    </span>
+                  )}
                 </div>
-                <button
-                  onClick={() => handleDeleteTemplate(template.id)}
-                  className="text-xs text-[var(--color-text-muted)] hover:text-red-600 transition-colors duration-150"
-                  style={{ transitionTimingFunction: "var(--ease-out)" }}
-                >
-                  Delete
-                </button>
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    onClick={() => handleToggleTemplateActive(template.id, template.is_active !== false)}
+                    className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors duration-150"
+                    style={{ transitionTimingFunction: "var(--ease-out)" }}
+                  >
+                    {template.is_active === false ? "Reactivate" : "Deactivate"}
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTemplate(template.id)}
+                    className="text-xs text-[var(--color-text-muted)] hover:text-red-600 transition-colors duration-150"
+                    style={{ transitionTimingFunction: "var(--ease-out)" }}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
 
               {!template.is_default && (
@@ -138,7 +188,7 @@ export default function TemplatesPage({ templates, companyId }) {
                   .map((task) => (
                     <li
                       key={task.id}
-                      className="group bg-[var(--color-violet-tint)] rounded-lg px-3 py-2"
+                      className={`group bg-[var(--color-violet-tint)] rounded-lg px-3 py-2 ${task.is_active === false ? "opacity-60" : ""}`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 min-w-0">
@@ -148,14 +198,27 @@ export default function TemplatesPage({ templates, companyId }) {
                               Optional
                             </span>
                           )}
+                          {task.is_active === false && (
+                            <span className="text-[10px] font-medium text-[var(--color-text-muted)] bg-white px-1.5 py-0.5 rounded shrink-0">
+                              Inactive
+                            </span>
+                          )}
                         </div>
-                        <button
-                          onClick={() => handleDeleteTask(task.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-[var(--color-text-muted)] hover:text-red-600 text-xs shrink-0"
-                          style={{ transitionTimingFunction: "var(--ease-out)" }}
-                        >
-                          ✕
-                        </button>
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 shrink-0">
+                          <button
+                            onClick={() => handleToggleTaskActive(task.id, task.is_active !== false)}
+                            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-[10.5px] font-medium"
+                          >
+                            {task.is_active === false ? "Reactivate" : "Deactivate"}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTask(task.id)}
+                            className="text-[var(--color-text-muted)] hover:text-red-600 text-xs"
+                            style={{ transitionTimingFunction: "var(--ease-out)" }}
+                          >
+                            ✕
+                          </button>
+                        </div>
                       </div>
                       <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
                         {verificationSummary(task)}
