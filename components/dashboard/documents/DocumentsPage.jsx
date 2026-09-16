@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 import UploadDocumentDrawer from "./UploadDocumentDrawer";
 
 export const DOC_TYPES = [
@@ -54,11 +55,13 @@ export default function DocumentsPage({
 }) {
   const router = useRouter();
   const supabase = createClient();
+  const toast = useToast();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
   const [downloadError, setDownloadError] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
   const [updateError, setUpdateError] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   async function handleDownload(doc) {
     setDownloadingId(doc.id);
@@ -100,6 +103,31 @@ export default function DocumentsPage({
       return;
     }
 
+    router.refresh();
+  }
+
+  // Row deleted first, storage cleanup second and best-effort — this
+  // way the list is never left showing a "document" whose file is
+  // actually gone (a broken download), matching how
+  // UploadDocumentDrawer already treats the storage copy as secondary
+  // to the DB record. RLS backs up the same admin/manager,
+  // not-medical-for-managers restriction the review buttons use.
+  async function handleDelete(doc) {
+    if (!confirm(`Delete this ${docTypeLabel(doc.doc_type).toLowerCase()}? This can't be undone.`)) return;
+    setDeletingId(doc.id);
+
+    const { error } = await supabase.from("employee_documents").delete().eq("id", doc.id);
+
+    if (error) {
+      setDeletingId(null);
+      setUpdateError(doc.id);
+      return;
+    }
+
+    await supabase.storage.from("employee-documents").remove([doc.file_path]);
+
+    setDeletingId(null);
+    toast.showSuccess("Document deleted.");
     router.refresh();
   }
 
@@ -265,6 +293,16 @@ export default function DocumentsPage({
                             loading={downloadingId === doc.id}
                             error={downloadError === doc.id}
                           />
+                          {canReview && (
+                            <button
+                              onClick={() => handleDelete(doc)}
+                              disabled={deletingId === doc.id}
+                              className="text-xs font-medium px-2.5 py-1.5 rounded-md text-[var(--color-text-muted)] hover:bg-[#fdeaea] hover:text-red-600 transition-colors duration-150 disabled:opacity-50"
+                              style={{ transitionTimingFunction: "var(--ease-out)" }}
+                            >
+                              {deletingId === doc.id ? "Deleting..." : "Delete"}
+                            </button>
+                          )}
                         </div>
                         {updateError === doc.id && (
                           <p className="text-[10.5px] text-red-600 text-right mt-1">Couldn't update — try again.</p>
