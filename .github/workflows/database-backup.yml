@@ -50,19 +50,30 @@ jobs:
       - name: Prune old backups (keep the last 8 weekly)
         run: |
           set -euo pipefail
-          OBJECTS=$(curl -sf -X POST "https://gcmsnibvomqmnqcavocn.supabase.co/storage/v1/object/list/database-backups" \
+          LIST_RESPONSE=$(curl -s -w '\n%{http_code}' -X POST "https://gcmsnibvomqmnqcavocn.supabase.co/storage/v1/object/list/database-backups" \
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{"limit": 1000, "sortBy": {"column": "name", "order": "asc"}}')
+            -d '{"prefix": "", "limit": 1000, "sortBy": {"column": "name", "order": "asc"}}')
+          LIST_STATUS=$(echo "$LIST_RESPONSE" | tail -n1)
+          OBJECTS=$(echo "$LIST_RESPONSE" | sed '$d')
+          if [ "$LIST_STATUS" != "200" ]; then
+            echo "Listing the bucket failed (HTTP $LIST_STATUS): $OBJECTS"
+            exit 1
+          fi
           TO_DELETE=$(echo "$OBJECTS" | jq -r '.[].name' | head -n -8)
           if [ -n "$TO_DELETE" ]; then
             NAMES_JSON=$(echo "$TO_DELETE" | jq -R . | jq -s .)
-            curl -sf -X DELETE "https://gcmsnibvomqmnqcavocn.supabase.co/storage/v1/object/database-backups" \
+            DELETE_RESPONSE=$(curl -s -w '\n%{http_code}' -X DELETE "https://gcmsnibvomqmnqcavocn.supabase.co/storage/v1/object/database-backups" \
               -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
               -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
               -H "Content-Type: application/json" \
-              -d "{\"prefixes\": ${NAMES_JSON}}"
+              -d "{\"prefixes\": ${NAMES_JSON}}")
+            DELETE_STATUS=$(echo "$DELETE_RESPONSE" | tail -n1)
+            if [ "$DELETE_STATUS" != "200" ]; then
+              echo "Pruning old backups failed (HTTP $DELETE_STATUS): $(echo "$DELETE_RESPONSE" | sed '$d')"
+              exit 1
+            fi
           else
             echo "Nothing to prune."
           fi
