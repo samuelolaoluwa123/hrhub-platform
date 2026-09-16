@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/dashboard/ToastProvider";
 import RequisitionDrawer from "./RequisitionDrawer";
 import PostingDrawer from "./PostingDrawer";
 
@@ -34,6 +35,7 @@ function formatDate(value) {
 export default function RecruitmentPage({ role, requisitions, postings, companyId, profileId, departments = [] }) {
   const router = useRouter();
   const supabase = createClient();
+  const toast = useToast();
   const isAdmin = role === "admin";
   const approvedRequisitions = requisitions.filter((r) => r.status === "approved");
 
@@ -43,11 +45,16 @@ export default function RecruitmentPage({ role, requisitions, postings, companyI
 
   async function handleReviewRequisition(id, status) {
     setActingOn(id);
-    await supabase
+    const { error } = await supabase
       .from("job_requisitions")
       .update({ status, reviewed_by: profileId, reviewed_at: new Date().toISOString() })
       .eq("id", id);
     setActingOn(null);
+    if (error) {
+      toast.showError(error.message);
+      return;
+    }
+    toast.showSuccess(status === "approved" ? "Requisition approved." : "Requisition rejected.");
     router.refresh();
   }
 
